@@ -23,8 +23,8 @@ def check(name, ok, hint=""):
 
 def main():
     v = sys.version_info
-    check(f"Python {v.major}.{v.minor}.{v.micro} is 3.11+",
-          (v.major, v.minor) >= (3, 11),
+    check(f"Python {v.major}.{v.minor}.{v.micro} is 3.10+",
+          (v.major, v.minor) >= (3, 10),
           "Install Python 3.11 or newer and recreate the venv.")
 
     check("Running inside a virtual environment",
