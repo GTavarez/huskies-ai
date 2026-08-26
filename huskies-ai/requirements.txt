@@ -1,0 +1,8 @@
+# Week 1 — pinned so a clean clone reproduces exactly.
+# Bump deliberately, never by accident. `pip freeze > requirements.lock` after any change.
+openai==3.3.1
+python-dotenv==1.0.1
+tiktoken==0.8.0
+pandas==2.2.3
+matplotlib==3.9.2
+pypdf==5.1.0

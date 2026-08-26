@@ -1,0 +1,10 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+out/*.png
+out/*.json
+!out/.gitkeep
+.ipynb_checkpoints/
+data/docs/private/
