@@ -1,0 +1,12 @@
+# Keep line endings LF everywhere. Stops the "LF will be replaced by CRLF"
+# warnings on Windows and keeps diffs clean if this repo is ever opened
+# on another machine.
+* text=auto eol=lf
+
+# Never touch these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.xlsx binary
+*.zip  binary

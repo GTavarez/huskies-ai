@@ -18,6 +18,7 @@ def ask(cli, temperature):
         messages=[{"role": "user", "content": PROMPT}],
         temperature=temperature,
         max_tokens=CONFIG["max_tokens"],
+        seed=CONFIG["seed"],          # was defined in config.py but never sent
     )
     resp = cli.chat.completions.create(**kwargs)
     u = resp.usage
@@ -30,10 +31,29 @@ def ask(cli, temperature):
     }
 
 
+def check_model(cli):
+    """Fail helpfully when the configured model is not available."""
+    try:
+        names = [m.id for m in cli.models.list().data]
+    except Exception:
+        return  # server does not support listing; let the real call report
+    if CONFIG["model"] not in names:
+        print(f"Model '{CONFIG['model']}' is not available at {CONFIG['base_url']}.")
+        if names:
+            print("\nAvailable there right now:")
+            for n in names:
+                print(f"  - {n}")
+            print("\nEither pull the one you want, or set MODEL_NAME in .env to a name above.")
+        else:
+            print("\nNo models are loaded. If you are on Ollama: ollama pull llama3.2")
+        raise SystemExit(1)
+
+
 def main():
     cli = client()
     runs = []
     print(f"model: {CONFIG['model']}  via  {CONFIG['base_url']}\n")
+    check_model(cli)
 
     for temp in (0.0, 0.0, 1.0):
         r = ask(cli, temp)
