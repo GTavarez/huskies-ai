@@ -8,16 +8,16 @@
 
 ## Measured
 
-| What | Value |
-|---|---|
-| Determinism at temperature 0, seed 7 | **deterministic** |
-| Unique answers across 5 identical runs | 1 of 5 |
-| Mean pairwise similarity | 1.000 |
-| Tokens per word (subword tokenizer) | **1.17** (subword ÷ whitespace words; the script prints 1.04 because its word tokenizer counts punctuation) |
-| Corpus size, sample docs | 20 documents |
-| Most expensive document | handbook_01_registration (114 tokens) |
-| Policy share of corpus | 35.3% |
-| Rows survived the merge | True (20 before, 20 after) |
+| What                                   | Value                                                                                                       |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Determinism at temperature 0, seed 7   | **deterministic**                                                                                           |
+| Unique answers across 5 identical runs | 1 of 5                                                                                                      |
+| Mean pairwise similarity               | 1.000                                                                                                       |
+| Tokens per word (subword tokenizer)    | **1.17** (subword ÷ whitespace words; the script prints 1.04 because its word tokenizer counts punctuation) |
+| Corpus size, sample docs               | 20 documents                                                                                                |
+| Most expensive document                | handbook_01_registration (114 tokens)                                                                       |
+| Policy share of corpus                 | 35.3%                                                                                                       |
+| Rows survived the merge                | True (20 before, 20 after)                                                                                  |
 
 Consequence: a small score difference in Week 6 is a real difference, not noise.
 No need to average across repeated runs.
@@ -35,7 +35,9 @@ No need to average across repeated runs.
 ## What I would do differently
 
 _your turn — two or three sentences_
+I would off watch some videos about the topic preior to the exercises, and I would also try to do the exercises in a group setting to get different perspectives on the problems.
 
 ## Next
 
 _what you are watching for in Week 2_
+Still not sure what to expect in Week 2, but I am looking forward to learning more about the practical applications of the concepts we covered in Week 1. I hope to gain a deeper understanding of the tools and techniques that will be introduced, and how they can be applied to real-world scenarios.
