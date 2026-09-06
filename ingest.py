@@ -166,7 +166,38 @@ def read_handbook_pdf(path):
     return out
 
 
+FEE_ROW = re.compile(
+    r"(U\d+\s*[–-]\s*U\d+)\s+£([\d.]+)\s+£([\d.]+)\s*x\s*(\d+)\s+(Yes|No|Training top only)"
+)
 
+def split_fee_table(records):
+    """A table is not prose. Each row becomes its own self-contained record,
+    so a retriever can return one age band without dragging its neighbours."""
+    out = []
+    for r in records:
+        rows = FEE_ROW.findall(r["text"])
+        if not rows:
+            out.append(r)
+            continue
+
+        # the parent section keeps its prose, minus the flattened table
+        prose = FEE_ROW.sub(" ", r["text"]).replace(
+            "Age group Season fee Instalment Kit included", " ")
+        out.append(record(r["doc_id"], r["source_file"], r["source_type"],
+                          r["title"], prose, r["updated"]))
+
+        for band, fee, inst, n, kit in rows:
+            band = " ".join(band.split())
+            out.append(record(
+                doc_id=f"{r['doc_id']}-{band.lower().replace(' ', '').replace('–', '-')}",
+                source_file=r["source_file"],
+                source_type=r["source_type"],
+                title=f"{band} season fee",
+                text=(f"{band}: season fee £{fee}, or {n} instalments of £{inst}. "
+                      f"Kit included: {kit}."),
+                updated=r["updated"],
+            ))
+    return out
 
 
 # --------------------------------------------------------------- GIVEN
@@ -210,7 +241,7 @@ def main():
         got = fn(path)
         print(f"  {filename:<24} {len(got):>3} records")
         all_records.extend(got)
-
+        all_records = split_fee_table(all_records)
     good, bad = validate(all_records)
 
     print(f"\n{len(good)} valid, {len(bad)} rejected")
