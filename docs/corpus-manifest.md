@@ -28,14 +28,15 @@ columns by hand.
 
 | source file          | type         | pages | records | tokens   | verifiable? | owner |
 | -------------------- | ------------ | ----- | ------- | -------- | ----------- | ----- |
-| `announcements.json` | announcement |       | 3       | 160      |             |       |
-| `faq_export.csv`     | faq          |       | 7       | 233      |             |       |
-| `handbook_2026.pdf`  | handbook     | 3     | 11      | 730      |             |       |
-| **total**            |              |       | **21**  | **1123** |             |       |
+| `announcements.json` | announcement | — | 3 | 160 | yes — invented, source in `data/raw/` | me |
+| `faq_export.csv` | faq | — | 7 | 233 | yes — invented, source in `data/raw/` | me |
+| `handbook_2026.pdf` | handbook | 3 | 11 | 730 | yes — invented, source in `data/raw/` | me |
+| **total** | | **3** | **21** | **1,123** | | |
 
-\* Estimated from the Week 1 ratio of 1.17 tokens per word. Re-run
-`corpus_stats.py` inside the venv, where tiktoken is installed, for exact counts
-before this is frozen for real.
+Counted with tiktoken `cl100k_base`, not estimated. For the record, the Week 1
+ratio of 1.17 tokens per word predicted 1,083 against an actual 1,123 — low by
+3.7%. Close enough for back-of-envelope work, not close enough to freeze a
+corpus on.
 
 **Rejected at ingestion:** 2 records — `faq-F006` (blank answer) and
 `ann-A-2026-016` (body repeated the title). Both correctly rejected; neither is
@@ -48,11 +49,11 @@ retrievable content.
 |                            |                                |
 | -------------------------- | ------------------------------ |
 | Records                    | 21                             |
-| Mean record                | ~52 tokens                     |
-| Longest record             | `handbook-s4`, Code of Conduct |
-| Whole corpus in one prompt | ~1,083 tokens                  |
-| Retrieving 4 records       | ~206 tokens                    |
-| Ratio                      | ~5x                            |
+| Mean record | 53 tokens |
+| Longest record | `handbook-s4`, Code of Conduct — 137 tokens |
+| Whole corpus in one prompt | 1,123 tokens |
+| Retrieving 4 records | 214 tokens |
+| Ratio | 5.2x |
 
 That ratio is unimpressive because this corpus is a toy. A real 40-page club
 handbook runs to roughly 26,000 tokens, and the same comparison stops being a
