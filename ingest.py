@@ -23,6 +23,8 @@ import csv
 import json
 import re
 from pathlib import Path
+from pypdf import PdfReader
+from headings import split_sections_by_font, split_sections
 
 RAW = Path("data/raw")
 OUT = Path("data/records.jsonl")
@@ -124,7 +126,7 @@ def read_announcements_json(path):
     return out
     
 def read_handbook_pdf(path):
-    from pypdf import PdfReader
+    
 
     FURNITURE = ["NORTHSIDE YOUTH FC", "Revision 4", "Uncontrolled when printed", "Page "]
 
@@ -164,7 +166,30 @@ def read_handbook_pdf(path):
         ))
 
     return out
+def read_real_handbook(path, club):
+    """Real handbooks from other clubs. Font evidence first, text heuristics
+    as the fallback. Kept separate from read_handbook_pdf on purpose —
+    Northside stays untouched as the regression fixture."""
+    secs = split_sections_by_font(path)
+    used = "font"
+    if not secs:
+        text = "\n".join(p.extract_text() or "" for p in PdfReader(path).pages)
+        secs = split_sections(text, threshold=5)
+        used = "text-heuristic"
 
+    out = []
+    for i, (title, body) in enumerate(secs, 1):
+        if not body.strip():
+            continue
+        out.append(record(
+            doc_id=f"{club}-s{i}",
+            source_file=path.name,
+            source_type="handbook",
+            title=title,
+            text=body,
+        ))
+    print(f"  {path.name:<20} {used:<16} {len(out):>3} records")
+    return out
 
 FEE_ROW = re.compile(
     r"(U\d+\s*[–-]\s*U\d+)\s+£([\d.]+)\s+£([\d.]+)\s*x\s*(\d+)\s+(Yes|No|Training top only)"
@@ -231,6 +256,22 @@ def main():
         ("announcements.json", read_announcements_json),
         ("handbook_2026.pdf", read_handbook_pdf),
     ]
+    real_dir = RAW / "real"
+    if real_dir.exists():
+        print("\nreal handbooks:")
+        real = []
+        for pdf in sorted(real_dir.glob("*.pdf")):
+            try:
+                real.extend(read_real_handbook(pdf, pdf.stem))
+            except Exception as e:
+                print(f"  {pdf.name:<20} FAILED  {type(e).__name__}: {e}")
+        good_real, bad_real = validate(real)
+        print(f"\n{len(good_real)} valid, {len(bad_real)} rejected")
+        for r, problems in bad_real:
+            print(f"  REJECTED {r.get('doc_id','?'):<20} {'; '.join(problems)}")
+        with open("data/records-real.jsonl", "w", encoding="utf-8") as f:
+            for r in good_real:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
     all_records = []
     for filename, fn in readers:
