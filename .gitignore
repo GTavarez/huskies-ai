@@ -8,3 +8,5 @@ out/*.json
 !out/.gitkeep
 .ipynb_checkpoints/
 data/docs/private/
+data/raw/real/
+data/records-real.jsonl
