@@ -75,6 +75,29 @@ def print_table(rows):
         print("  ".join(str(r[c]).ljust(w[c]) for c in cols))
 
 
+def display(text, head=700, tail=400):
+    """Show the record in a form you can actually judge.
+
+    The first version of this printed `text[:600]` and appended an ellipsis. On
+    a corpus whose median record is 529 characters that quietly truncated a
+    third of every sample — and because the cut always lands mid-sentence, the
+    verdict it invites is "ends mid-sentence". Seven of twenty reviewed records
+    were rejected for a defect introduced by the viewer rather than found in the
+    corpus.
+
+    A measurement instrument that manufactures the thing it is measuring is
+    worse than no instrument. So: short records print whole, and long ones print
+    their beginning AND their end, with the omission stated in characters. You
+    can always see how a record actually finishes, which is the one thing the
+    question depends on."""
+    if len(text) <= head + tail:
+        return text
+    omitted = len(text) - head - tail
+    return (f"{text[:head]}\n"
+            f"           [… {omitted} characters omitted — the END of the record follows …]\n"
+            f"           {text[-tail:]}")
+
+
 def ask(prompt, lower=True):
     """Prompt and read one line.
 
@@ -105,7 +128,7 @@ def review(records, n, seed=7):
         print(f"\n[{i}/{len(sample)}]  {r['doc_id']}   ({len(r['text'])} chars)")
         print(f"  source : {r['source_file']}")
         print(f"  title  : {r['title'][:90]}")
-        print(f"  text   : {r['text'][:600]}{' ...' if len(r['text']) > 600 else ''}")
+        print(f"  text   : {display(r['text'])}")
         print("\n  Would this answer a parent's question ON ITS OWN?", flush=True)
 
         while True:
@@ -130,6 +153,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", default="data/records-real.jsonl")
     ap.add_argument("--n", type=int, default=10)
+    ap.add_argument("--seed", type=int, default=7,
+                    help="which records get sampled. Change it for a second, "
+                         "independent sample — re-reviewing records you have "
+                         "already seen measures your memory, not the corpus.")
     ap.add_argument("--no-review", action="store_true", help="stats only, skip the questions")
     args = ap.parse_args()
 
@@ -148,9 +175,10 @@ def main():
     print("  records    wildly different counts across clubs of similar length is")
     print("             the signal that one document defeated the splitter.")
 
-    verdicts = [] if args.no_review else review(records, args.n)
+    verdicts = [] if args.no_review else review(records, args.n, args.seed)
 
-    out = Path("docs/record-review.md")
+    out = Path(f"docs/record-review-seed{args.seed}.md" if args.seed != 7
+               else "docs/record-review.md")
     out.parent.mkdir(exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write("# Record review\n\n")
@@ -173,6 +201,20 @@ def main():
             for v in verdicts:
                 f.write(f"| `{v['doc_id']}` | {v['source']} | {v['chars']} | "
                         f"{v['verdict']} | {v['why']} |\n")
+            # One rate across four documents hides the case where three are
+            # fine and one is unusable — which is a completely different problem
+            # with a completely different fix.
+            per = defaultdict(lambda: [0, 0])
+            for v in verdicts:
+                per[v["source"]][0] += 1
+                per[v["source"]][1] += 1 if v["verdict"] == "y" else 0
+            f.write("\n### By document\n\n| source | reviewed | self-contained |\n|---|---|---|\n")
+            print("\nby document:")
+            for src in sorted(per):
+                n, good = per[src]
+                f.write(f"| {src} | {n} | {good} ({good*100//n}%) |\n")
+                print(f"  {src:<14} {good}/{n}")
+
             f.write("\n## The worst document\n\n_Which of the four, and why._\n")
             f.write("\n## What I would change in the splitter\n\n_One or two concrete fixes._\n")
 
