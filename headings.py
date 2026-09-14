@@ -262,6 +262,15 @@ def lines_with_font(path):
 
     pages = []
     for page in PdfReader(path).pages:
+        # A page can declare that it should be displayed rotated. When it does,
+        # the matrices still report positions in unrotated page space, so the
+        # axis that runs DOWN the displayed page is no longer y. Group by y on a
+        # /Rotate 90 page and every line of a paragraph lands in a different
+        # group while unrelated lines share one — which is how club-01 turned
+        # into word salad while every length metric called it the healthiest
+        # document in the corpus.
+        rot = int(page.get("/Rotate", 0) or 0) % 360
+        sideways = rot in (90, 270)
         runs = defaultdict(list)
 
         def visitor(text, cm, tm, font_dict, font_size, _runs=runs):
@@ -276,13 +285,18 @@ def lines_with_font(path):
             x, y, scale = compose(cm, tm)
             name = str((font_dict or {}).get("/BaseFont", "")).lower()
             bold = "bold" in name or "black" in name or "heavy" in name
-            _runs[round(y, 1)].append((x, t, float(font_size or 0) * scale, bold))
+            # down-the-page axis first, across-the-line axis second
+            down, across = (x, y) if sideways else (y, x)
+            _runs[round(down, 1)].append((across, t, float(font_size or 0) * scale, bold))
 
         plain = page.extract_text(visitor_text=visitor) or ""
         sq, idx = squash_index(plain)
         cursor = 0
-        for y in sorted(runs, reverse=True):          # top of page downwards
-            parts = sorted(runs[y], key=lambda r: r[0])
+        # Unrotated pages count down from the top, so the first line is the
+        # largest y. On a sideways page the down-axis increases with reading
+        # order instead, so the sort flips.
+        for key in sorted(runs, reverse=not sideways):
+            parts = sorted(runs[key], key=lambda r: r[0])
             raw = "".join(p[1] for p in parts)
             text, cursor = respace(raw, sq, idx, plain, cursor)
             if not text.strip():
