@@ -10,3 +10,8 @@ out/*.json
 data/docs/private/
 data/raw/real/
 data/records-real.jsonl
+
+# Derived from the four real handbooks — same reason as data/raw/real/.
+# This file is their full text in one string; committing it publishes
+# four other clubs' documents just as surely as committing the PDFs.
+data/.handbook-text.txt
