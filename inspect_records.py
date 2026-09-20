@@ -76,6 +76,15 @@ def print_table(rows):
 
 
 def display(text, head=700, tail=400):
+    # Third revision. Truncating at 600 made every long record look like it
+    # ended mid-sentence; marking the omission made three reviewers' verdicts
+    # be about the marker. The longest record in this corpus is 5,562
+    # characters, which fits on a screen. So: print all of it, always, and let
+    # the viewer contribute nothing to the judgement.
+    return text
+
+
+def _display_elided(text, head=700, tail=400):
     """Show the record in a form you can actually judge.
 
     The first version of this printed `text[:600]` and appended an ellipsis. On
