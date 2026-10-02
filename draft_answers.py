@@ -242,7 +242,18 @@ def main():
             print(f"      {passage[:260]}{'...' if len(passage) > 260 else ''}")
             print(f"      key: {key!r}" if key else "      key: (none found)")
 
-        choice = ask(f"\n  [1-{len(options)}/e/n/s/q] ")
+        # Anything unrecognised used to fall straight through to the refuse
+        # branch, so a typo — or a line of text pasted at the wrong prompt —
+        # silently became "the handbooks do not answer this". A prompt that
+        # turns a mistake into data is worse than one that rejects it.
+        valid = {"e", "n", "s", "q"} | {str(i) for i in range(1, len(options) + 1)}
+        choice = ""
+        while choice not in valid:
+            choice = ask(f"\n  [1-{len(options)}/e/n/s/q] ")
+            if choice not in valid:
+                print(f"    One of 1-{len(options)} to accept that key, "
+                      f"e to type your own, n for a refuse case, "
+                      f"s to skip, q to stop.")
         if choice == "q":
             break
         if choice == "s":

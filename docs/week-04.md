@@ -185,8 +185,25 @@ now known to be real and known to be flawed.
 
 ## What I would do differently
 
-_your turn — two or three sentences_
+I would ask the document what it is before theorising about what is wrong with
+it. The interleaved text looked exactly like a two-column layout, so that is
+what I chased — and `page.get("/Rotate")` would have answered it in thirty
+seconds. Reading a file's own metadata is cheaper than any amount of reasoning
+about its symptoms.
+
+I would also build the measuring instrument before trusting the measurement.
+Two of the four bugs this week were in the review tool, not in the corpus, and
+both produced numbers that looked like evidence. And I would not label twenty
+records at the end of a long day, because the two passes I did that way
+disagreed with each other more than they disagreed with the documents.
 
 ## Next
 
-_what you are watching for in Week 5_
+Whether the chunking fixes move a number that cannot drift. Everything measured
+so far has been either a length statistic, which could not see club-01's
+scrambling, or a hand judgement, which changed every time I sat down. Week 5
+needs a number that means the same thing on Tuesday and Friday.
+
+Specifically watching club-02: seven records over 2,000 characters, and it is
+the only document whose problem is under-splitting. Every fix so far has pushed
+the other way.
