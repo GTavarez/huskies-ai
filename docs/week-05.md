@@ -139,10 +139,41 @@ labeller does.
 
 ## Which one ships
 
-_Name the cost as well as the score. 274 MB and a forward pass per record on a
-club's laptop, for one extra question out of eleven — is that the trade you would
-defend to a client paying for it?_
+> **Superseded on 2026-10-02 — see `week-06.md`.** The conclusion below is kept
+> because the reasoning was sound and the *inputs* were wrong, which is the more
+> useful thing to be able to look back at. On an audited question set the answer
+> is **embeddings alone**: BM25 falls to 5/14, embeddings reach 12/14, and hybrid
+> adds nothing embeddings did not already have. The comparison below was run on
+> keys that a BM25 search had chosen, which quietly rigged it in BM25's favour.
+
+Hybrid — but not for the reason the table suggests.
+
+If it were embeddings *or* BM25, I would ship BM25. They tie at 8/11, and BM25
+needs no model, no 274 MB download, no forward pass per record, and no
+re-embedding when the corpus changes. On a club's laptop or a small practice's
+front-desk machine, that is not a close call.
+
+Hybrid wins because **RRF is about ten lines on top of the BM25 I already have**,
+and because the two rankers fail on different questions. Embeddings earn their
+place on the questions BM25 cannot reach by construction — *"what do I need to
+buy for my child to play"* is answered by *"your child will need a size 3 ball"*,
+which shares not one word with the question. No amount of tuning gets a lexical
+matcher there.
+
+So the 274 MB buys one extra question out of eleven, and a class of question that
+would otherwise be permanently unanswerable. I would defend that. I would not
+defend it if the two had disagreed on nothing.
+
+For a client who cannot install a model at all, BM25 alone at 72% is a shippable
+product, and I would say so rather than insisting on the better number.
 
 ## What I would do differently
 
-_your turn — two or three sentences_
+I would build the measuring instrument before the measurement. Five numbers came
+out of the same 128 records, and three of the five were about my tools — labels I
+did not write, a viewer that cut records at 600 characters, a prompt that offered
+one option and asked yes or no. Each of them looked like evidence at the time.
+
+I would also stop asking a human to produce a stable number. The hand review was
+worth every minute for finding bugs — it caught four that no statistic would have
+— but it was never going to give the same answer twice, and I kept asking it to.
