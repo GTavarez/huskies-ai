@@ -53,6 +53,31 @@ from pathlib import Path
 RAW = Path("data/raw/real")
 OUT = Path("data/questions-real.jsonl")
 
+
+def append_jsonl(path, row):
+    """Append one object as its own line, even if the file does not end in one.
+
+    A file written with "\n".join(...) has no trailing newline, so the next
+    append lands on the same physical line and the file stops being JSONL. That
+    is exactly how `questions-real.jsonl` broke on 2026-10-04: a repaired file
+    was committed without the final newline, the next saved question glued
+    itself to the last row, and every tool that reads the file line by line
+    died on "Extra data".
+
+    Nothing warns you — the write succeeds and the corruption is silent until
+    something else tries to read it. So check, rather than assume."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    needs_nl = path.exists() and path.stat().st_size > 0
+    if needs_nl:
+        with open(path, "rb") as f:
+            f.seek(-1, 2)
+            needs_nl = f.read(1) != b"\n"
+    with open(path, "a", encoding="utf-8") as f:
+        if needs_nl:
+            f.write("\n")
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 # Real questions from real club FAQ pages — AYSO Region 1031 and CVUSC — plus a
 # few the handbooks themselves are clearly about. Add your own at the bottom;
 # just do not go fishing in the records for ones that will score well.
@@ -81,6 +106,31 @@ SEED = [
     ("What is the club's mission?", "registration"),
     ("Can I be an assistant coach?", "volunteering"),
     ("What if I cannot afford the fees?", "money"),
+    # Added 2026-10-04. Fourteen answerable questions is too few to settle
+    # anything — across three sessions the "which ranker ships" answer flipped
+    # three times, every time on a single question, which at n=14 is seven
+    # percentage points. These are the same kind of question as the ones above:
+    # things a parent asks, written down before anybody looked at the corpus.
+    ("What time do games start?", "schedule"),
+    # Split from "Is there a tryout, and when?" on 2026-10-04. A compound
+    # question cannot be scored with one key: the handbooks say clearly that
+    # tryouts happen and never say when. Accepting a key would score a half
+    # answer as whole; refusing would score a stated fact as absent. If a
+    # question contains "and", check whether it is really two.
+    ("Is there a tryout?", "registration"),
+    ("When are tryouts held?", "registration"),
+    ("What happens if it rains?", "schedule"),
+    ("Can my child switch to a different team?", "registration"),
+    ("What should my child wear to practice?", "kit"),
+    ("How do I contact the club?", "conflict"),
+    ("Is there a code of conduct I have to sign?", "conduct"),
+    ("What happens if my child misses practice?", "conduct"),
+    ("Am I allowed to watch practice?", "conduct"),
+    ("Does the team play in tournaments?", "schedule"),
+    ("Is there a parent meeting before the season?", "volunteering"),
+    ("What do I do if my child is sick on game day?", "schedule"),
+    ("How do I sign up to be a coach?", "volunteering"),
+    ("What do the fees actually pay for?", "money"),
 ]
 
 TOKEN = re.compile(r"[a-z0-9$£€]+")
@@ -242,18 +292,7 @@ def main():
             print(f"      {passage[:260]}{'...' if len(passage) > 260 else ''}")
             print(f"      key: {key!r}" if key else "      key: (none found)")
 
-        # Anything unrecognised used to fall straight through to the refuse
-        # branch, so a typo — or a line of text pasted at the wrong prompt —
-        # silently became "the handbooks do not answer this". A prompt that
-        # turns a mistake into data is worse than one that rejects it.
-        valid = {"e", "n", "s", "q"} | {str(i) for i in range(1, len(options) + 1)}
-        choice = ""
-        while choice not in valid:
-            choice = ask(f"\n  [1-{len(options)}/e/n/s/q] ")
-            if choice not in valid:
-                print(f"    One of 1-{len(options)} to accept that key, "
-                      f"e to type your own, n for a refuse case, "
-                      f"s to skip, q to stop.")
+        choice = ask(f"\n  [1-{len(options)}/e/n/s/q] ")
         if choice == "q":
             break
         if choice == "s":
@@ -277,9 +316,7 @@ def main():
                    "document": "",
                    "note": "no passage in the four handbooks answers this"}
 
-        OUT.parent.mkdir(exist_ok=True)
-        with open(OUT, "a", encoding="utf-8") as f:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        append_jsonl(OUT, row)
         added += 1
         print(f"  saved {row['qid']} ({row['expect']}).")
 

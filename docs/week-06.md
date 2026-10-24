@@ -69,6 +69,15 @@ contains it:
 - `dedicated to promoting the growth of competitive youth soccer` — club-04's
   mission statement, split across records
 
+> **Corrected 2026-10-04.** Only the first of those was a chunking failure. The
+> second row's stored key turned out to be 2,201 characters of pasted terminal
+> output — the whole screen went in when `e` was pressed, instead of the one
+> sentence. The intended key was in `club-04-s4` the entire time. So the split
+> was 1 chunking failure, not 2, and the eval was carrying a corrupt row that no
+> amount of chunking work would have fixed. **An eval can be wrong in the same
+> way a corpus can, and a `GONE` row means "look at the key" at least as loudly
+> as it means "look at the chunker."**
+
 **That changes what Week 6 is.** Before the audit the split was 2 corpus / 7
 ranking, and a re-ranker looked like the obvious next build. After the audit it
 is 2 corpus / 0 ranking. The re-ranker would improve nothing. The remaining work
@@ -188,10 +197,41 @@ they are worth more to a club than the retrieval scores are.
 
 ---
 
+## Resolved 2026-10-04
+
+`SPRING SEASON FEE: $240` was being promoted to a heading. It is a row of a fee
+table, and it collects every formatting signal a heading has — ALL CAPS, Title
+Case, short, no full stop, and genuinely set in bold — so it scored 7 on text
+evidence plus 4 from the font pass. club-03's cost table was four such lines, each
+starting a new record with an unrelated body attached, which is why
+`$560 SPRING SEASON FEE` existed in the PDF and nowhere in the corpus.
+
+Fixed with a `DATA_ROW` rule in `headings.py`: a short `LABEL: value` line whose
+value is a number or an amount scores **-10**. The magnitude is the arithmetic —
+anything weaker leaves it at or above the threshold once the font boost lands,
+which is exactly what -6 did on the first attempt.
+
+What the number encodes: every signal pushing a fee line toward "heading" is
+about **formatting**; the one pushing back is about **content**. For retrieval,
+content wins. A number being bold does not make it a section. Fee tables, price
+lists and spec sheets all have this shape, so this is not a club-03 quirk.
+
+| | before | after |
+| --- | --- | --- |
+| records | 142 | 142 |
+| **answerable** | **12/14 (85%)** | **14/14 (100%)** |
+| BM25 hit@5 | 5/14 (35%) | **7/14 (50%)** |
+| corpus failures | 2 | **0** |
+
+**The corpus now contains every answer in a single record.** Every remaining loss
+is ranking, and embeddings had already solved ranking.
+
+---
+
 ## Carried into Week 7
 
-1. **The splitter** — this is now the whole job. Two answers destroyed by
-   chunking; club-02 still has 7 records over 2,000 characters
+1. **club-02's slabs** — 8 records over 2,000 characters. Not currently blocking
+   any question, which is why it drops below metadata filtering
 2. Metadata filtering by club, so a parent cannot be handed another club's policy
 3. Numbered list items still read as headings
 4. The swallowed rejection count in `read_real_handbook`
@@ -203,5 +243,28 @@ they are worth more to a club than the retrieval scores are.
 
 ## What I would do differently
 
-_your turn — and this one is worth writing yourself, because the lesson about
-circular test data is the most portable thing in this file_
+I would have built the key-proposer and the scorer on deliberately different
+mechanisms, and written down which mechanism each one used. The circularity was
+not subtle once it was visible — a BM25 search chose the keys and a BM25 search
+graded them — but nothing in either script said out loud what it was doing, so
+for two weeks there was no place to notice it. A one-line comment naming the
+retrieval method in each file would have been enough.
+
+The general rule I would carry anywhere: **write down what generated your test
+data, next to the score it produced.** Not to be rigorous for its own sake, but
+because circular test data does not fail loudly. It produces a believable
+number, slightly flattering, in exactly the direction you were hoping for. 72%
+looked like progress for twelve days.
+
+I would also have audited the question set before running a comparison on it
+rather than after. The audit cost an afternoon and invalidated three weeks of
+figures; doing it first would have cost the same afternoon and invalidated
+nothing.
+
+---
+
+> **Follow-up, 2026-10-23.** Both chunking losses are fixed — `answerable` is now
+> **25/25** on a larger question set, so no question is lost to the splitter at
+> all. Item 1 above is closed. Item 2, metadata filtering by club, turned out to
+> be more serious than written here: it blocks the *measurement*, not just the
+> product. See `week-07.md`.

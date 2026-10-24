@@ -231,6 +231,34 @@ def main():
         print("  not buying you anything BM25 was not already giving you, and")
         print("  it costs 274 MB and a forward pass per record to run.")
 
+    # A tie in the TOTAL is not a tie in the composition. Hybrid reached 19/25
+    # on the same run where embeddings reached 19/25, and the obvious reading —
+    # "RRF adds nothing" — is only true if it is the SAME nineteen. RRF reorders
+    # a merged pool, so it can rescue a question the semantic ranker missed and
+    # drop one it had, netting zero while changing which parent gets an answer.
+    # Equal numbers were the thing that misled this project in Week 5; print the
+    # set difference, not the count.
+    if "hybrid" in by:
+        rescued = [q for q in ans
+                   if by["hybrid"][q["qid"]]["hit"] and not by["embed"][q["qid"]]["hit"]]
+        dropped = [q for q in ans
+                   if by["embed"][q["qid"]]["hit"] and not by["hybrid"][q["qid"]]["hit"]]
+        print("\nwhat fusing actually changed, question by question")
+        print("-" * 46)
+        for q in rescued:
+            print(f"  RRF RESCUED  {q['question'][:52]}")
+        for q in dropped:
+            print(f"  RRF DROPPED  {q['question'][:52]}")
+        if not rescued and not dropped:
+            print("  nothing — hybrid hit the identical set embeddings hit.")
+            print("  Fusing BM25 in changed the ranking and changed no outcome,")
+            print("  so the lexical index is pure maintenance cost here.")
+        else:
+            print(f"  net {len(rescued) - len(dropped):+d} questions, "
+                  f"{len(rescued)} rescued and {len(dropped)} dropped.")
+            print("  Equal totals, different questions. Read the lists, not the")
+            print("  count — a wash in the metric is not a wash for a parent.")
+
     OUT.mkdir(exist_ok=True)
     doc = Path("docs/retrieval-compare.md")
     doc.parent.mkdir(exist_ok=True)
@@ -249,6 +277,28 @@ def main():
             b, e = by["bm25"][q["qid"]]["hit"], by["embed"][q["qid"]]["hit"]
             if b != e:
                 f.write(f"- **{'BM25' if b else 'embeddings'} only** — {q['question']}\n")
+        if "hybrid" in by:
+            rescued = [q for q in ans if by["hybrid"][q["qid"]]["hit"]
+                       and not by["embed"][q["qid"]]["hit"]]
+            dropped = [q for q in ans if by["embed"][q["qid"]]["hit"]
+                       and not by["hybrid"][q["qid"]]["hit"]]
+            f.write("\n## What fusing actually changed\n\n")
+            if not rescued and not dropped:
+                f.write("Hybrid hit the **identical set** embeddings hit — not "
+                        "merely the same count. Fusing BM25 in changed the "
+                        "ranking and changed no outcome, so on this corpus the "
+                        "lexical index is maintenance cost with nothing behind "
+                        "it.\n")
+            else:
+                for q in rescued:
+                    f.write(f"- **RRF rescued** — {q['question']}\n")
+                for q in dropped:
+                    f.write(f"- **RRF dropped** — {q['question']}\n")
+                f.write(f"\nNet {len(rescued) - len(dropped):+d}: "
+                        f"{len(rescued)} rescued, {len(dropped)} dropped. Equal "
+                        f"totals, different questions — a wash in the metric is "
+                        f"not a wash for a parent.\n")
+
         f.write("\n## Which one ships, and why\n\n"
                 "_Name the cost as well as the score. An embedding model that wins "
                 "by one question is not obviously worth 274 MB on a club's laptop._\n")

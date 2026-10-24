@@ -40,6 +40,21 @@ FURNITURE = re.compile(
     r"|^[\W_]+$"                           # a line that is only punctuation
     r"|\bconfidential\b)", re.I)
 
+# A short "LABEL: value" line where the value is a number or an amount. This is
+# a row of a table, not a heading — but it looks exactly like one to every other
+# rule here: it is short, often ALL CAPS, and does not end in a full stop.
+#
+# club-03's cost table is four such lines in a row. The splitter promoted each
+# to a heading, so `SUMMER/FALL COMBINED SEASON FEE: $560` ended one record and
+# `SPRING SEASON FEE: $240` started the next with an unrelated body attached.
+# A parent asking what it costs can then never retrieve both fees together, and
+# `$560 SPRING SEASON FEE` exists nowhere in the corpus despite being in the PDF.
+#
+# Fee tables, price lists and spec sheets all have this shape, so this is not a
+# club-03 quirk.
+DATA_ROW = re.compile(
+    r"^[^:]{2,45}:\s*[~<>≈approx.]{0,7}\s*[\$£€]?\s*[\d,]+(?:\.\d+)?\s*%?\s*$", re.I)
+
 NUMBERED = re.compile(r"^(\d+(?:\.\d+)*)[.)]?\s+(\S.*)$")
 LETTERED = re.compile(r"^([A-Z])[.)]\s+(\S.*)$")
 LABELLED = re.compile(r"^(section|article|appendix|part|chapter)\s+[\dIVXA-Z]+\b[.:\s]*(.*)$", re.I)
@@ -107,6 +122,20 @@ def score_line(line, next_line=""):
     if s.endswith(":") and len(s) <= 60:
         score += 1
         reasons.append("ends with colon")
+
+    if DATA_ROW.match(s):
+        # The magnitude is not arbitrary. A fee line collects ALL CAPS (+3),
+        # Title Case (+2), short (+1) and no-full-stop (+1) = 7, and
+        # split_sections_by_font adds another +4 because club-03 genuinely does
+        # set those lines in bold. So anything weaker than -10 leaves it at or
+        # above the threshold of 5, which is what -6 did on the first attempt.
+        #
+        # What that arithmetic encodes: every signal pushing a fee line toward
+        # "heading" is about FORMATTING, and the one pushing back is about
+        # CONTENT. For retrieval, content wins — a number being bold does not
+        # make it a section.
+        score -= 10
+        reasons.append("data row, not a heading")
 
     if words and words[0].lower() in SENTENCE_STARTERS and not NUMBERED.match(s):
         score -= 3
