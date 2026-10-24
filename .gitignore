@@ -15,3 +15,7 @@ data/records-real.jsonl
 # This file is their full text in one string; committing it publishes
 # four other clubs' documents just as surely as committing the PDFs.
 data/.handbook-text.txt
+
+# 40 model answers quoting the four real handbooks verbatim.
+# Regenerable with judge.py; no reason to publish their text.
+out/judge.csv

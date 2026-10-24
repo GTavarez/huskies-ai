@@ -56,6 +56,31 @@ from pathlib import Path
 
 OUT = Path("data/questions-real.jsonl")
 
+
+def append_jsonl(path, row):
+    """Append one object as its own line, even if the file does not end in one.
+
+    A file written with "\n".join(...) has no trailing newline, so the next
+    append lands on the same physical line and the file stops being JSONL. That
+    is exactly how `questions-real.jsonl` broke on 2026-10-04: a repaired file
+    was committed without the final newline, the next saved question glued
+    itself to the last row, and every tool that reads the file line by line
+    died on "Extra data".
+
+    Nothing warns you — the write succeeds and the corruption is silent until
+    something else tries to read it. So check, rather than assume."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    needs_nl = path.exists() and path.stat().st_size > 0
+    if needs_nl:
+        with open(path, "rb") as f:
+            f.seek(-1, 2)
+            needs_nl = f.read(1) != b"\n"
+    with open(path, "a", encoding="utf-8") as f:
+        if needs_nl:
+            f.write("\n")
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 # Not a checklist to complete in order — a spread to check yourself against, so
 # twenty-five questions do not all turn out to be about fees.
 CATEGORIES = [
@@ -150,9 +175,7 @@ def load():
 
 
 def append(row):
-    OUT.parent.mkdir(exist_ok=True)
-    with open(OUT, "a", encoding="utf-8") as f:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    append_jsonl(OUT, row)
 
 
 def coverage(rows):
