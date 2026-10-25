@@ -263,11 +263,114 @@ between the other two needs information the eval does not currently carry.
 
 ---
 
+## Prompt v1 vs v2 — a trade, and a metric that hid half of it
+
+V1 refused four questions whose answer was in the context it was handed. The fix
+looked obvious: the prompt's two prohibitions, `Do not use general knowledge`
+and `Do not guess`, read to a 3B model as *decline unless certain*. V2 keeps the
+same constraint but changes the shape — search instruction first and positive,
+the prohibition narrowed to importing outside facts, and refusal gated behind a
+test the model can apply (*nothing in the documents touches the question*)
+rather than a confidence level it cannot calibrate.
+
+Run both, keep both files, compare the sets:
+
+| | v1 | v2 |
+| --- | --- | --- |
+| correct refusals | **9/15** | 4/15 |
+| answered, grounded | 20/25 | **23/25** |
+| over-refused | 4 | **1** |
+| mangled refusals | 0 | 0 |
+| **fabricated on an unanswerable question** | **0** | **2** |
+
+| | |
+| --- | --- |
+| FIXED | q09 yell at the referee · q11 play up an age group · q28 is there a tryout |
+| BROKE | q04 injured during a game · q06 concussion · q17 practice schedule · q25 cannot afford fees · q26 what time do games start |
+
+Fixed 3, broke 5, net −2. All three fixes are over-refusals the change was aimed
+at, so the mechanism worked exactly as intended. It just cost five.
+
+### The row that decides it
+
+> **What happens if my child is injured during a game?**
+> *"If your child is injured during a game, you should ask the referee if you
+> may enter the field to assist your child."*
+
+No handbook says that. The model invented an injury procedure and addressed it
+to a parent. Week 6 already recorded that **no handbook tells a parent what to
+do about a concussion** — four clubs, zero procedures — so this is the one
+subject area where the corpus is known to be empty and a confident answer is
+guaranteed to be fabricated.
+
+That single row settles the prompt question regardless of the other numbers.
+Three extra grounded answers do not buy a fabricated injury instruction.
+
+**Ship v1.** The over-refusals stay in, as a known defect with a named cost.
+
+### The metric could not see it
+
+```python
+made_up = [r for r in ans if r["verdict"] == "UNSUPPORTED"]
+```
+
+`ans` is answerable rows only. An `UNSUPPORTED` verdict on a **must-refuse** row
+— the model fabricating an answer to a question the documents cannot answer, the
+worst cell in the matrix — was filtered out before being counted. So the run
+that invented the injury procedure printed:
+
+```
+INVENTED           0
+```
+
+The prediction written down before the run said *invented 0 → 1 or 2*. It landed
+on 2. The instrument reported it as 0.
+
+This is the same defect as the denominator error earlier in this file, wearing
+different clothes: **a metric that silently excludes its own worst outcome, and
+keeps printing a clean number.** Not a crash, not a warning — a quotable zero.
+Fixed in `judge.py` and `judge_diff.py`; fabrications are now counted on every
+row and the unanswerable ones are broken out separately, because they are a
+different severity and averaging them away is how the zero happened.
+
+### Prediction scorecard — 3 of 4
+
+| predicted | actual | |
+| --- | --- | --- |
+| over-refused 4 → 0 or 1 | 1 | right |
+| correct refusals 9 → 6 or 7 | **4** | wrong — the cost was 5, not 2–3 |
+| invented 0 → 1 or 2 | 2 | right, and the metric said 0 |
+| net a wash or worse | −2 | right |
+
+The miss is the informative one. The refusal half of the question set is far more
+sensitive to prompt wording than the answering half — five refusals lost against
+three answers gained, from one rewritten paragraph.
+
+### What this actually proves: one prompt cannot serve both halves
+
+V2 is not a worse prompt. It is better on everything the answering half measures
+and worse on everything the refusing half measures, and both directions moved
+from a single edit. That is not a wording problem to be tuned away; a prompt has
+one setting and the question set has two populations.
+
+The build it points at is **routing**: decide first whether the corpus plausibly
+covers the question, then answer with the permissive prompt when it does and the
+strict one when it does not. The expensive part already exists — the model judge
+reads the retrieved context and gets 9/15 on precisely that call, where every
+score threshold got 0/15. It is currently wired after the answer, grading it.
+Wiring it before the answer, as a gate, uses the one thing in this project that
+demonstrably works for the one decision that keeps going wrong.
+
+---
+
 ## Carried into Week 8
 
-1. **Fix the grounded prompt** — four over-refusals with the answer in context
-2. **Make the refusal check corruption-tolerant** — a substring match on a
-   negated sentence is not a contract
+1. **Routing** — the judge, moved from after the answer to before it, as a
+   gate deciding which prompt answers. Prompt v1 vs v2 proved one prompt
+   cannot serve both halves of the question set; v1 ships meanwhile
+2. ~~Make the refusal check corruption-tolerant~~ — **done**:
+   `refusal_kind()` matches the core phrase with a length guard, has unit
+   cases including the q36 string, and counts mangled refusals separately
 3. **Metadata filtering by club** — now blocking the eval, not just the product
 4. **Weight the question set** by how often a parent actually asks each
    question — the hybrid-vs-embeddings choice is a tie at 19/25 and cannot
