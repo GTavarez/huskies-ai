@@ -297,16 +297,39 @@ at, so the mechanism worked exactly as intended. It just cost five.
 > *"If your child is injured during a game, you should ask the referee if you
 > may enter the field to assist your child."*
 
-No handbook says that. The model invented an injury procedure and addressed it
+> **RETRACTED, 2026-10-25.** The paragraph below was wrong, and it is left here
+> rather than deleted because the mistake is more instructive than the
+> conclusion was. club-02's parent rules, item 14, say verbatim: *"If during a
+> game your child is injured, **ask the referee if you may enter the field and
+> assist your child**."* The model did not invent an injury procedure. It
+> quoted one, almost word for word. The row was labelled `refuse`, the judge
+> called a near-quote UNSUPPORTED, and I built a conclusion on top of both
+> without checking the source — two messages after flagging those very labels
+> as unreliable. The "Ship v1" verdict below rested entirely on this row and
+> does not survive it.
+
+~~No handbook says that. The model invented an injury procedure and addressed it
 to a parent. Week 6 already recorded that **no handbook tells a parent what to
 do about a concussion** — four clubs, zero procedures — so this is the one
 subject area where the corpus is known to be empty and a confident answer is
-guaranteed to be fabricated.
+guaranteed to be fabricated.~~
 
-That single row settles the prompt question regardless of the other numbers.
-Three extra grounded answers do not buy a fabricated injury instruction.
+~~That single row settles the prompt question regardless of the other numbers.
+Three extra grounded answers do not buy a fabricated injury instruction.~~
 
-**Ship v1.** The over-refusals stay in, as a known defect with a named cost.
+~~**Ship v1.** The over-refusals stay in, as a known defect with a named cost.~~
+
+**No verdict on v1 vs v2.** Both runs were scored against a must-refuse set
+containing five wrong labels, so the comparison measured the labels as much as
+the prompts. It has to be re-run against the audited set before it means
+anything.
+
+The lesson that does survive: **the corpus was not empty where I assumed it was
+empty.** Week 6 found no concussion procedure in any handbook and I generalised
+that to injuries, which is a different question with a different answer. One
+exact-string search over the PDFs would have settled it in seconds, and that
+search is now built into `audit_questions.py` as the `t` option, because the
+same mistake had already set five labels wrong.
 
 ### The metric could not see it
 
@@ -363,12 +386,225 @@ demonstrably works for the one decision that keeps going wrong.
 
 ---
 
+## Routing, tried and killed in one run
+
+Prompt v1 and v2 are better than each other on opposite halves of the question
+set, so the next idea was to stop choosing: gate each question first — does the
+retrieved context contain the answer? — then send COVERED questions to the
+permissive prompt and emit the refusal sentence directly for MISSING, with no
+generation step at all and therefore no path to a fabricated answer.
+
+`llama3.2:1b` as the gate, scored against whether the answer was actually in the
+retrieved context:
+
+| | correct |
+| --- | --- |
+| the gate | **13/40** |
+| constant "MISSING" | **21/40** |
+| constant "COVERED" | 19/40 |
+| the gate, counting only the 27 rows it answered in the required format | 13/27 |
+
+**A constant beats it.** Not by a little — by eight questions. And the
+conditional rates say why:
+
+| | |
+| --- | --- |
+| says COVERED when the answer IS in context | 3/19 (16%) |
+| says COVERED when the answer is NOT in context | 4/21 (19%) |
+
+It says COVERED marginally *more often* when the answer is absent. The output is
+statistically independent of the property it exists to detect. This is not a
+weak signal to be strengthened with a better prompt; there is no signal. On top
+of that, 13 of 40 responses contained neither COVERED nor MISSING — a 1B model
+asked for one word, given five records of context, returned prose a third of the
+time.
+
+### The trap this run walked into, with the numbers to prove it
+
+| | v1 | v1 + gate |
+| --- | --- | --- |
+| **correct refusals** | 9/15 | **13/15** |
+| answered, grounded | 20/25 | **9/25** |
+| over-refused | 4 | **11** |
+| invented | 0 | 1 |
+
+**13/15 is the best refusal number this project has produced, and it came from
+the worst system in it.** The gate found the degenerate solution: refuse almost
+everything. The refusal metric cannot tell that apart from competence, because
+refusing is scored as correct on every must-refuse row and the cost lands in a
+different row of the table.
+
+Week 5 wrote the warning for the opposite case — *"a system that answers
+everything scores perfectly on answer rate and is unshippable"* — and this is
+its mirror image, arriving with a headline figure good enough to ship on if
+nobody read the second line. The guard against it is not a better metric. It is
+the rule that **no single number from this eval is allowed to decide anything**,
+which is also why `judge_diff.py` prints FIXED and BROKE above the totals.
+
+### Why this result is trustworthy when most of this week's are not
+
+Gate accuracy is scored against `retrieved` — computed from the verbatim answer
+keys and the retrieval run, with no model's opinion anywhere in it. It does not
+depend on the must-refuse labels (four of which are known wrong) and it does not
+depend on the 1.5B judge (which has never been hand-audited).
+
+Of everything measured this week, **this is the only number independent of both
+soft foundations**, which is why routing can be called dead on one run while the
+prompt comparison cannot be called settled on two.
+
+### The diff tool is scoring against labels we know are wrong
+
+`judge_diff.py` reported FIXED (6) for v1 -> v2+gate, and two of those six are
+q18 *How are the teams created?* and q19 *How big is the time commitment?* —
+both of which the handbooks **do** answer (club-03 has `HOW ARE TEAMS ORGANIZED
+AND FORMED?` and `WHAT IS THE TIME COMMITMENT?`). They are labelled `refuse`
+from the audit's over-correction phase. So the tool recorded "fixed" for a
+system that started wrongly refusing answerable questions.
+
+Nothing is wrong with the tool. The labels are wrong, and a comparison is only
+as good as the labels under it. **That makes the four label fixes a prerequisite
+for every comparison in this file, not an item on a list.**
+
+### Prediction scorecard — 1 of 4
+
+| predicted | actual | |
+| --- | --- | --- |
+| gate accuracy 60–75% | **32.5%** | wrong, badly — and I named 65% as the viability floor |
+| correct refusals 9 -> 10–13 | 13 | right, for the wrong reason: it refuses nearly everything |
+| 0 fabrications on unanswerable questions | 0 with v1, **1 with v2** | wrong — UNPARSED routes to the answerer, so the short-circuit leaks |
+| grounded 20 -> 19–22 | **9** | wrong by ten questions |
+
+The one hit is the one that matters least, and it is right by accident. A gate
+that outputs MISSING for everything would also have landed in that range.
+
+### Routing is not dead; a 1B gate is
+
+The idea survives the run. What died is this implementation, and the next test
+needs something this machine does not currently have: **three capable models.**
+The gate cannot be the judge (the grader would be grading its own routing call)
+and the answerer cannot be the judge (self-grading). Of the five models
+installed, only `llama3.2:latest` and `qwen2.5:1.5b` are strong enough to do any
+of the three jobs — `qwen2.5:0.5b` copied its own prompt into its answer back in
+Week 2.
+
+So testing routing honestly means pulling a third model, and it goes behind the
+label fixes and the judge audit, because without those there is nothing to
+measure the result against.
+
+---
+
+## After the audit — every number in this file, recomputed
+
+Five labels were wrong, not four. q04 *injured during a game*, q16 *photo
+release*, q18 *how teams are created*, q19 *time commitment*, q20 *coach from
+the sideline* — all marked `refuse`, all answered by a handbook. The question
+set is now **30 answerable · 10 must-refuse**.
+
+| | before (five bad labels) | after |
+| --- | --- | --- |
+| answerable | 25/25 (100%) | **30/30 (100%)** |
+| BM25 hit@5 | 11/25 (44%) | **14/30 (46%)** |
+| embeddings hit@5 | 19/25 (76%) | **24/30 (80%)** |
+| hybrid (RRF) hit@5 | 19/25 (76%) | **24/30 (80%)** |
+| refusal floor separates? | no | **no** |
+| **judge correct refusals** | 9/15 (60%) | **8/10 (80%)** |
+| judge answered, grounded | 19/25 (76%) | **24/30 (80%)** |
+| invented | 0 | **0** |
+| over-refused | 4 | **4** |
+
+`answerable` holding at 100% across 30 questions is the strongest structural
+result the project has: **five new verbatim keys were added and the chunker kept
+every one of them inside a single record.** Zero questions lost to the splitter
+on a set 20% larger than the one it was tuned against.
+
+Embeddings found **all five** of the new questions (19 → 24). BM25 found three
+(11 → 14). The two questions BM25 missed are q19, whose answer is under the
+heading `WHAT IS THE TIME COMMITMENT?` and whose key is a date range, and q20,
+whose answer begins *"Parents cheer; coaches coach"* — both of which the
+embedding model reached and no amount of lexical tuning would.
+
+### The audit raised the score, and that deserves suspicion
+
+`audit_questions.py` prints a warning on exactly this: *"an audit that only
+improves your score was probably not an audit."* Embeddings went 76% → 80%.
+
+Two things make it defensible, and one does not:
+
+- **The expect-flips were forced by the source text**, not by preference. Each
+  of the five has a handbook passage that answers the question; three of them
+  sit under a literal section heading asking the question.
+- **The keys were found by exact-string search over the PDFs**, not by ranked
+  retrieval, so there is none of the Week 6 circularity where a BM25 search
+  chose the keys a BM25 search would then grade.
+- **But I chose the five key strings, not Gisell.** Five of thirty questions —
+  one sixth of the answerable set — now carry keys selected by the assistant,
+  and the score moved up on precisely those five. Week 4's 20% baseline was
+  thrown out for less: labels supplied rather than produced. This is weaker than
+  that, because a key is a verbatim quote and the flip decision was made from
+  the source text, but it is not nothing, and **the 80% should be quoted with it
+  attached** until the five keys have been checked independently.
+
+### The refusal finding, on a cleaner set
+
+| | |
+| --- | --- |
+| worst leak (q06, concussion) | 17.914 |
+| weakest genuine hit (q28, tryout) | 4.209 |
+| separates? | **no** |
+
+Still 0/10 on every ranker. Five of the fifteen must-refuse rows turned out to
+be mislabelled and **the finding did not move**, which is the best evidence yet
+that it is real rather than an artifact of a sloppy question set. The two
+remaining leaks are q21 *do boys and girls play on the same teams* and q29
+*when are tryouts held* — both cases where the handbooks discuss the topic and
+never state the answer, which is the hardest class for any scorer.
+
+### The cost of honest labels: a smaller denominator
+
+Ten must-refuse rows means each is worth 10 percentage points, up from 6.7. With
+the ±1 generation noise measured earlier in this file, **8/10 and 9/10 are the
+same result.** The labels got more honest and the metric got noisier at the same
+time, and the only fix for the second half is more must-refuse questions — which
+is now a Week 8 item rather than a footnote.
+
+### Prediction scorecard — 5 of 7
+
+| predicted | actual | |
+| --- | --- | --- |
+| answerable 29–30/30 | **30/30** | right — and the q19 split I flagged as the likely failure held together |
+| BM25 13–14/30 | **14/30** | right |
+| embeddings 22–23/30 | **24/30** | wrong, better than predicted |
+| refused 0/10 | **0/10** | right |
+| judge correct refusals 8/10 | **8/10** | right, exactly |
+| grounded 22–24/30 | **24/30** | right |
+| over-refused 5 | **4** | wrong, better than predicted |
+
+Both misses are in the favourable direction, which is its own mild warning
+sign — but these were arithmetic from a known run plus a known label change,
+which is a much easier thing to predict than the behaviour of a new component.
+The two genuinely new things predicted this week, prompt v2 and the gate, came
+in at 3/4 and 1/4.
+
+---
+
 ## Carried into Week 8
 
-1. **Routing** — the judge, moved from after the answer to before it, as a
-   gate deciding which prompt answers. Prompt v1 vs v2 proved one prompt
-   cannot serve both halves of the question set; v1 ships meanwhile
-2. ~~Make the refusal check corruption-tolerant~~ — **done**:
+1. ~~Fix the known-wrong refuse labels~~ — **done**: five of them, not four.
+   q04 was found only because a claim built on it turned out to be false
+2. **Hand-audit the judge** — ten rows, counted, quoted beside every judge
+   figure. Still never done, and with a 10-row refuse set it is now the only
+   way to tell a real one-question move from noise
+3. **More must-refuse questions.** Ten rows at 10 points each is below the
+   resolution of the effects being measured. Write five more, from questions a
+   parent would ask that four handbooks genuinely do not answer
+4. **Re-run the v1 vs v2 comparison** on the audited set. The earlier verdict
+   was retracted, not replaced
+5. **Have the five new keys checked independently** — they were chosen by the
+   assistant, and the score rose on exactly those five rows
+6. **Routing, properly** — needs a third capable model pulled, since gate,
+   answerer and judge must all differ. A 1B gate scored 13/40 against a
+   constant's 21/40. v1 ships meanwhile
+7. ~~Make the refusal check corruption-tolerant~~ — **done**:
    `refusal_kind()` matches the core phrase with a length guard, has unit
    cases including the q36 string, and counts mangled refusals separately
 3. **Metadata filtering by club** — now blocking the eval, not just the product

@@ -19,3 +19,12 @@ data/.handbook-text.txt
 # 40 model answers quoting the four real handbooks verbatim.
 # Regenerable with judge.py; no reason to publish their text.
 out/judge.csv
+
+# Names all four real clubs and quotes their handbooks. Regenerable with
+# claim_audit.py — the public repo gets the method, not the assessment.
+docs/findings-audit.md
+
+# Judge runs quote the four handbooks verbatim. Regenerable with judge.py.
+out/judge-*.csv
+docs/judge-report-gated.md
+docs/judge-report-v2-gated.md
