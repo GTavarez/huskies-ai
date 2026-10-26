@@ -1,12 +1,12 @@
 # Retrieval — BM25 vs embeddings
 
-141 records · 25 answerable questions · k=5 · `nomic-embed-text`
+141 records · 30 answerable questions · k=5 · `nomic-embed-text`
 
 | ranker | hit@5 | worst refusal leak |
 |---|---|---|
-| bm25 | 11/25 (44%) | 17.91 |
-| embed | 19/25 (76%) | 0.74 |
-| hybrid | 19/25 (76%) | 0.03 |
+| bm25 | 14/30 (46%) | 17.91 |
+| embed | 24/30 (80%) | 0.71 |
+| hybrid | 24/30 (80%) | 0.03 |
 
 ## Disagreements
 
@@ -15,6 +15,8 @@
 - **embeddings only** — Do I have to volunteer?
 - **embeddings only** — Where are the games played?
 - **embeddings only** — What age groups does the club have?
+- **embeddings only** — How big is the time commitment?
+- **embeddings only** — Can I coach from the sideline?
 - **embeddings only** — Is there a payment plan?
 - **embeddings only** — What happens if it rains?
 - **BM25 only** — Is there a tryout?

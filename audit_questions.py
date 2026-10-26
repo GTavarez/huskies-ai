@@ -44,6 +44,55 @@ from draft_answers import Index, passages, propose_key
 
 QUESTIONS = Path("data/questions-real.jsonl")
 REJECTED = Path("data/questions-rejected.jsonl")
+CACHE = Path("data/.handbook-text.txt")
+
+
+def squash(t):
+    return "".join(str(t).split()).lower()
+
+
+def in_handbooks(key):
+    """Is this exact string in the four PDFs, ignoring whitespace?
+
+    Checked against the SOURCE, never against data/records-real.jsonl — a key
+    verified against the records would make `answerable` read 100% forever,
+    which is the one thing that metric exists to detect.
+
+    It catches the q39 class of error: the key read `filling out a SAY Soccer
+    volunteer form` while the handbook says `the`. One article, and the eval
+    silently scored a correct answer as a miss."""
+    if not CACHE.exists():
+        return None
+    return squash(key) in CACHE.read_text(encoding="utf-8")
+
+
+def ask_verified_key():
+    """Type a key, confirm it is really in the handbooks.
+
+    The ranked candidate list cannot be the only way in. It is built with the
+    same lexical ranking as the system under audit, so it reproduces the same
+    blind spots: it offered Photo Day volunteer duties for a photo release and
+    the acknowledgements page for team formation. An instrument that cannot show
+    you the answer will get you to label it absent."""
+    while True:
+        key = ask("  type the key, copied exactly from the handbook: ",
+                  lower=False)
+        if not key:
+            return None, ""
+        found = in_handbooks(key)
+        if found is False:
+            print("    Not found in the four handbooks. Either it is not a "
+                  "verbatim copy\n    (watch a/the, punctuation, a hyphen) or "
+                  "it is not in there at all.")
+            if ask("    [Enter] retype  ·  [k] keep it anyway: ",
+                   lower=True).startswith("k"):
+                pass
+            else:
+                continue
+        elif found is None:
+            print("    (no data/.handbook-text.txt — key not verified)")
+        doc = ask("  which document holds it (club-01..04, ? if unsure): ")
+        return key, doc
 
 
 def ask(prompt, lower=True):
@@ -60,6 +109,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--show", type=int, default=3)
+    ap.add_argument("--only", default="",
+                    help="comma-separated qids to review, e.g. q16,q18,q19,q20")
     args = ap.parse_args()
 
     out = Path("docs/eval-audit.md")
@@ -68,6 +119,29 @@ def main():
         return
 
     rows = [json.loads(l) for l in open(QUESTIONS, encoding="utf-8") if l.strip()]
+
+    # Reviewing all 40 rows to correct 4 of them is how an audit gets abandoned
+    # halfway. --only reviews the named qids and passes every other row through
+    # untouched; the file is still rewritten whole, so nothing is dropped and
+    # the ids stay in order.
+    #
+    # The ids are read BEFORE any renumbering, which matters: this file has been
+    # renumbered by a previous audit run, so q16 means whatever is q16 in the
+    # file right now. Check the question text in the prompt matches the one you
+    # meant before pressing anything.
+    original_order = list(rows)
+    only = [q.strip() for q in args.only.split(",") if q.strip()]
+    if only:
+        have = {r["qid"] for r in rows}
+        missing = [q for q in only if q not in have]
+        if missing:
+            raise SystemExit(f"not in {QUESTIONS}: {', '.join(missing)}")
+        skipped = [r for r in rows if r["qid"] not in only]
+        rows = [r for r in rows if r["qid"] in only]
+        print(f"reviewing {len(rows)} of {len(rows) + len(skipped)} rows "
+              f"({', '.join(only)}); the rest pass through untouched.")
+    else:
+        skipped = []
     print(f"{len(rows)} rows to audit.")
     print("Building the index over the four handbooks ...", flush=True)
     idx = Index(passages())
@@ -145,8 +219,19 @@ def main():
                 for n, (src, passage, _) in enumerate(hits, 1):
                     k = propose_key(r["question"], passage)
                     print(f"    [{n}] {src}  key: {k!r}")
-                pick = ask("  [number]: ")
-                if pick.isdigit() and 1 <= int(pick) <= len(hits):
+                print("    [t] none of these — type the key myself")
+                pick = ask("  [number/t]: ")
+                if pick == "t":
+                    key, doc = ask_verified_key()
+                    if key:
+                        r.update(expect="answerable", keys=[key], answer=key,
+                                 document=doc,
+                                 note="flipped at cold audit — key typed from "
+                                      "the handbook, the ranked candidates did "
+                                      "not contain the answer")
+                    else:
+                        print("  no key — leaving it as refuse.")
+                elif pick.isdigit() and 1 <= int(pick) <= len(hits):
                     src, passage, _ = hits[int(pick) - 1]
                     k = propose_key(r["question"], passage) or ask(
                         "  type the key: ", lower=False)
@@ -157,14 +242,20 @@ def main():
                 else:
                     print("  no pick — leaving it as refuse.")
         else:
-            newkey = ask("  new key (copy it exactly from the handbook): ",
-                         lower=False)
+            newkey, doc = ask_verified_key()
             if newkey:
                 r.update(keys=[newkey], answer=newkey,
+                         document=doc or r.get("document", ""),
                          note="key replaced at cold audit")
         fixed.append(r)
         kept.append(r)
         print(f"  fixed -> {r['expect']}.")
+
+    # Put the untouched rows back in their original order before writing, or a
+    # targeted review would silently delete the 36 rows it never showed you.
+    if skipped:
+        order = {r["qid"]: n for n, r in enumerate(original_order)}
+        kept = sorted(kept + skipped, key=lambda r: order.get(r["qid"], 10**6))
 
     # Renumber so ids are unique and sequential — the --keep flag in
     # draft_answers.py left duplicates behind.
