@@ -154,7 +154,10 @@ def score_run(name, searcher, recs, texts, qs, k):
     """hit@k and the refusal leak, for one ranker."""
     rows = []
     for q in qs:
-        hits = searcher(q["question"], k)
+        try:
+            hits = searcher(q["question"], k, q.get("document", ""))
+        except TypeError:
+            hits = searcher(q["question"], k)
         if q["expect"] == "refuse":
             rows.append({"qid": q["qid"], "expect": "refuse", "hit": 0,
                          "top": hits[0][1] if hits else 0.0})
@@ -175,6 +178,8 @@ def main():
     ap.add_argument("--model", default="nomic-embed-text")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--hybrid", action="store_true")
+    ap.add_argument("--by-club", action="store_true",
+                    help="restrict each question's search to its own club")
     args = ap.parse_args()
 
     recs = [json.loads(l) for l in open(RECORDS, encoding="utf-8") if l.strip()]
@@ -182,16 +187,32 @@ def main():
     texts = [f"{r['title']} {r['text']}" for r in recs]
     ans = [q for q in qs if q["expect"] == "answerable"]
 
-    print(f"{len(recs)} records · {len(qs)} questions · k={args.k}\n")
+    print(f"{len(recs)} records · {len(qs)} questions · k={args.k} · "
+          f"scope: {'per club' if args.by_club else 'whole corpus'}\n")
     bm = BM25(texts)
     em = Embedded(texts, args.model, OUT / f"embeddings-{args.model}.json")
 
-    runs = [score_run("bm25", bm.search, recs, texts, qs, args.k),
-            score_run("embed", em.search, recs, texts, qs, args.k)]
+    # A parent belongs to one club; the corpus holds four and they contradict
+    # each other. Scoping the search is the product requirement and it is also
+    # what stops "right answer, wrong handbook" from scoring as a miss.
+    club_of = [r["doc_id"].rsplit("-", 1)[0] for r in recs]
+
+    def scoped(fn):
+        def search(query, k, club=""):
+            if not (args.by_club and club):
+                return fn(query, k)
+            return [(i, sc) for i, sc in fn(query, len(texts))
+                    if club_of[i] == club][:k]
+        return search
+
+    runs = [score_run("bm25", scoped(bm.search), recs, texts, qs, args.k),
+            score_run("embed", scoped(em.search), recs, texts, qs, args.k)]
     if args.hybrid:
-        def hybrid(query, k):
-            return [(i, s) for i, s in rrf(bm.search(query, k * 2),
-                                           em.search(query, k * 2))[:k]]
+        def hybrid(query, k, club=""):
+            wide = len(texts) if (args.by_club and club) else k * 2
+            lex = scoped(bm.search)(query, wide, club)
+            sem = scoped(em.search)(query, wide, club)
+            return [(i, s) for i, s in rrf(lex[:k * 2], sem[:k * 2])[:k]]
         runs.append(score_run("hybrid", hybrid, recs, texts, qs, args.k))
 
     # A ranker's scores are only comparable to its OWN scores. BM25 is

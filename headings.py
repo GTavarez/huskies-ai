@@ -400,7 +400,28 @@ def norm(s):
     return "".join(s.split()).lower()
 
 
-def split_sections_by_font(path, min_body_chars=40, threshold=5):
+# max_chars=None: the secondary split is OFF, and that is a measured decision.
+#
+# Turning it on at 1200 took the corpus from 141 records to 200 and moved
+# nothing: BM25 held at 19/30 by swapping two questions for two others,
+# embeddings fell 25 to 24, hybrid 24 to 23, correct refusals 8/10 to 7/10.
+# The club it was built for — the one with records averaging 1,370 characters
+# against 426 to 637 elsewhere — stayed at exactly 6/13.
+#
+# The hypothesis was that oversized records were diluting BM25. Nine of eleven
+# misses were that club's and that club had the biggest records, so size looked
+# like the cause. It had 13 of the 30 questions, the most of any club, so it
+# would have topped the miss list whatever the reason.
+#
+# What those misses actually are: "what happens if it rains" against a handbook
+# that says lightning/thunder, "what should my child wear" against turf shoes,
+# "how do I sign up to be a coach" against a SAY Soccer volunteer form. Every
+# one of them sits in the embeddings-only column. They are paraphrase, and
+# re-chunking does not touch paraphrase.
+#
+# Kept, off, with the numbers attached: a reader deciding to try this again
+# deserves to know it was tried.
+def split_sections_by_font(path, min_body_chars=40, threshold=5, max_chars=None):
     """One pass over the plainly-extracted text, scored with BOTH signals.
 
     An earlier version used font evidence as the sole splitter and matched the
@@ -465,7 +486,49 @@ def split_sections_by_font(path, min_body_chars=40, threshold=5):
             merged[-1] = (merged[-1][0], (merged[-1][1] + " " + t + " " + b).strip())
         else:
             merged.append((t, b))
-    return merged
+    if not max_chars:
+        return merged
+    return [out for t, b in merged for out in split_long(t, b, max_chars)]
+
+
+def split_long(title, body, max_chars=1200, target=900, overlap=160):
+    """Break a section that is really a chapter.
+
+    Heading detection gives one record per heading, which is right until a
+    document barely uses headings. One club's handbook averages 1,370
+    characters a record against 426 to 637 for the other three, with seven over
+    2,000 and one at 5,562 — and nine of the eleven questions BM25 still misses
+    after club scoping come from that one club. A 5,562-character record is a
+    chapter: the query's terms are diluted among thousands of unrelated words,
+    and BM25's length normalisation finishes the job.
+
+    Splits on sentence ends, never mid-sentence, and the windows OVERLAP. The
+    overlap is not padding — `answerable` is 30/30 today, meaning every answer
+    key sits intact inside one record, and cutting a section in half is exactly
+    what breaks that. A key straddling a cut survives in one window or the
+    other.
+
+    Check `answerable` after changing any of these numbers. If it drops below
+    30/30 a key was severed, and the right response is a larger target, not a
+    rewritten key."""
+    if len(body) <= max_chars:
+        return [(title, body)]
+    import re as _re
+    sentences = _re.split(r"(?<=[.!?])\s+", body)
+    out, cur = [], ""
+    for sent in sentences:
+        if cur and len(cur) + len(sent) + 1 > target:
+            out.append(cur.strip())
+            cur = (cur[-overlap:] + " " + sent) if overlap else sent
+        else:
+            cur = (cur + " " + sent).strip()
+    if cur.strip():
+        out.append(cur.strip())
+    if len(out) < 2:
+        return [(title, body)]
+    # Each part keeps the section's title: a record whose title is its heading
+    # is how retrieval and the reviewer both identify what they are looking at.
+    return [(f"{title} ({i} of {len(out)})", part) for i, part in enumerate(out, 1)]
 
 
 def main():

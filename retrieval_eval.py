@@ -125,6 +125,8 @@ def main():
                     help="BM25 score below which a result counts as 'nothing "
                          "relevant found'. Tune it on the must-refuse cases, "
                          "then leave it alone.")
+    ap.add_argument("--by-club", action="store_true",
+                    help="restrict each question's search to its own club")
     args = ap.parse_args()
 
     recs = [json.loads(l) for l in open(args.file, encoding="utf-8") if l.strip()]
@@ -132,11 +134,35 @@ def main():
     texts = [f"{r['title']} {r['text']}" for r in recs]
     bm = BM25(texts)
 
-    print(f"{len(recs)} records · {len(qs)} questions · k={args.k} · floor={args.floor}\n")
+    # A parent belongs to ONE club. The corpus holds four, and they contradict
+    # each other on uniforms, conduct, coaching and tournament fees — so an
+    # unfiltered search can hand a family another club's policy, confidently,
+    # and never refuse, because it did find a good answer. Just not theirs.
+    #
+    # It also distorts the measurement. A correct answer taken from the wrong
+    # handbook scores identically to finding nothing, which is how "right
+    # answer, wrong entity" has been showing up as a ranking failure since
+    # Week 6.
+    #
+    # Must-refuse questions are left unfiltered. No club answers them, so
+    # scoping would only make refusing easier, and the refusal result is the
+    # one finding here that has survived every change so far. It does not need
+    # help.
+    club_of = [r["doc_id"].rsplit("-", 1)[0] for r in recs]
+
+    def search(query, k, club=""):
+        if not (args.by_club and club):
+            return bm.search(query, k)
+        return [(i, sc) for i, sc in bm.search(query, len(texts))
+                if club_of[i] == club][:k]
+
+    scope = "per club" if args.by_club else "whole corpus"
+    print(f"{len(recs)} records · {len(qs)} questions · k={args.k} · "
+          f"floor={args.floor} · search scope: {scope}\n")
 
     rows, by_doc = [], defaultdict(lambda: [0, 0])
     for q in qs:
-        hits = bm.search(q["question"], args.k)
+        hits = search(q["question"], args.k, q.get("document", ""))
         top_score = hits[0][1] if hits else 0.0
 
         if q["expect"] == "refuse":
