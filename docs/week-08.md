@@ -261,6 +261,151 @@ and the answer together can. Prediction loses to verification both times.
 
 ---
 
+## Metadata filtering by club — kept
+
+A parent belongs to one club. The corpus holds four, and they contradict each
+other on uniforms, conduct, coaching and tournament fees. An unfiltered search
+can hand a family another club's policy, confidently, and never refuse — it did
+find a good answer, just not theirs.
+
+It also distorts the measurement: a correct answer from the wrong handbook
+scores identically to finding nothing, which is how "right answer, wrong
+entity" has been logged as a ranking failure since Week 6.
+
+Every answerable question already carried a `document` field, so scoping cost
+nothing but a filter.
+
+| | whole corpus | per club |
+| --- | --- | --- |
+| BM25 hit@5 | 15/30 (50%) | **19/30 (63%)** |
+| club-02 | 5/13 | 6/13 |
+| **club-03** | **2/6** | **4/6** |
+| club-04 | 8/11 | 9/11 |
+| embeddings hit@5 | 24/30 | **25/30** |
+| hybrid hit@5 | 24/30 | 24/30 |
+
+Nothing got worse, which is also a check on the labels: the key is inside that
+club's records by construction, so filtering can only remove competitors. A
+question that dropped would have meant a wrong `document` field.
+
+**club-03 was being drowned out.** 2/6 to 4/6 once it competes only against its
+own 23 records. And 48 of the 141 records are club-01 — a generic introduction
+to youth soccer, not a club handbook, the source of no answerable question, and
+therefore pure interference in every search ever run against this corpus.
+
+Must-refuse questions stay unfiltered. No club answers them, so scoping would
+only make refusing easier, and `refused 0/10` is the one result that has
+survived every change since Week 5. It does not need help.
+
+### Scoping changes what the lexical half is for
+
+| | whole corpus | per club |
+| --- | --- | --- |
+| embeddings | 24/30 | **25/30** |
+| hybrid (RRF) | 24/30 | **24/30** |
+
+Unscoped, hybrid ties embeddings. Scoped, it falls one behind — and the fusion
+breakdown says why: RRF rescues *Is there a code of conduct I have to sign?*
+and drops *What happens if I yell at the referee?* and *How do I sign up to be
+a coach?*
+
+The reading that fits: once the candidate pool is restricted to one club it is
+already clean, so BM25's contribution is less about cutting through
+interference and more about pulling the fused ranking toward literal wording.
+The questions it costs are both paraphrase — *yell at the referee* against a
+handbook discussing criticism of officials, *sign up to be a coach* against a
+SAY Soccer volunteer form.
+
+**This is not a verdict on which ranker ships.** One question out of thirty is
+inside the noise this set can resolve — Week 5 wrote that rule down after a
+one-question difference produced a confident conclusion that was wrong, and
+"which one ships" has already been answered three times in this project and
+revised twice. What can be said is narrower and holds: **the lexical half was
+doing more work before scoping than after**, and its unique contribution is now
+one question while costing two.
+
+Settling it needs the weighted question set, not another run.
+
+---
+
+## The oversized-record split — built, measured, reverted
+
+After scoping, nine of the eleven remaining BM25 misses were club-02's, and
+club-02's records are three times everyone else's:
+
+| club | records | mean | median | max | over 2,000 |
+| --- | --- | --- | --- | --- | --- |
+| club-01 | 48 | 426 | 333 | 1,938 | 0 |
+| **club-02** | 36 | **1,370** | **866** | **5,562** | **7** |
+| club-03 | 23 | 637 | 520 | 1,869 | 0 |
+| club-04 | 34 | 616 | 375 | 2,674 | 1 |
+
+A 5,562-character record is a chapter. The hypothesis — that BM25's length
+normalisation was diluting the query's terms — was specific, long-standing
+(carried since Week 5) and had an obvious fix: split oversized sections again
+on sentence boundaries, with overlapping windows so no answer key is severed.
+
+The split worked as designed. club-02 went 36 records to 79, mean 1,370 to 711,
+nothing over 2,000. `answerable` held at 30/30, so the overlap did its job.
+
+| | 141 records | 200 records |
+| --- | --- | --- |
+| BM25 by club | 19/30 | **19/30** |
+| **club-02 specifically** | **6/13** | **6/13** |
+| embeddings by club | 25/30 | **24/30** |
+| hybrid by club | 24/30 | **23/30** |
+| judge, correct refusals | 8/10 | **7/10** |
+
+**The club it was built for did not move at all.** BM25 held at 19 by trading
+two questions for two others. Everything else lost one. A 40% larger corpus for
+a net negative.
+
+### Correlation read as cause
+
+Nine of eleven misses were club-02's, and club-02 had the biggest records. But
+club-02 also holds **13 of the 30 questions**, more than any other club, so it
+would have topped the miss list whatever the reason.
+
+What those misses are:
+
+| question | what the handbook says |
+| --- | --- |
+| What happens if it rains? | lightning/thunder |
+| What should my child wear to practice? | turf shoes |
+| How do I sign up to be a coach? | a SAY Soccer volunteer form |
+
+Every one sits in the embeddings-only column. **They are paraphrase, and
+re-chunking does not touch paraphrase.** BM25 is at its ceiling on that
+handbook, which is why embeddings reach 25/30 against its 19/30 — no longer a
+defect to fix, but the argument for the architecture already in place.
+
+Reverted. `split_long` stays in `headings.py`, off, with these numbers in the
+comment above it, so the next person to have the idea reads what happened
+instead of repeating it.
+
+---
+
+## Predictions this week — 2 of 6
+
+| | predicted | actual |
+| --- | --- | --- |
+| guards: grounded | 20–23 | **10** |
+| guards: over-refused | 5–8 | **16** |
+| glued records: BM25 | +1 or +2 | +1 ✓ |
+| gemma2 gate | 20–28, level with a constant | 24/40, exactly level ✓ |
+| club scoping: BM25 | 22–26 | **19** |
+| split: BM25 | 21–24 | **19** |
+
+Direction right almost every time, magnitude wrong almost every time, and
+always in the same direction — every change was predicted to do more than it
+did. The one structural prediction, that the gate would tie a constant, is the
+only one that was not about size.
+
+Worth recording because it is the bias to correct for, not a run of bad luck:
+**a change that looks like it should fix nine failures fixes two.**
+
+---
+
 ## Carried forward
 
 1. ~~Fix the glued records~~ — **done**: two, not four, and the cause was
@@ -274,6 +419,7 @@ and the answer together can. Prediction loses to verification both times.
    constant's 24/40, and costs three grounded answers. Verification after
    generation works; prediction before it does not
 5. Re-run v1 vs v2 on the audited set — retracted in Week 7, never replaced
-6. Metadata filtering by club
+6. ~~Metadata filtering by club~~ — **done**, BM25 15/30 → 19/30. What remains
+   after it is paraphrase, which is an embeddings job, not a chunking one
 7. From Week 3: `POST /infer` with a typed schema, the Gradio tab,
    `pipelines_bench.py` still never run
