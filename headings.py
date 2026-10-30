@@ -268,9 +268,44 @@ def respace(line, sq, idx, plain, cursor):
     if pos < 0:                      # out of order, or only on an earlier page
         pos = sq.find(key)
     if pos < 0:
-        return line, cursor
+        # A whole line is a brittle lookup key: the font pass groups runs by
+        # rounded baseline, so two separately-drawn lines sharing a y arrive
+        # concatenated in an order pypdf's text never used, and the match fails.
+        #
+        # Falling back to `line` meant returning the font pass's own output,
+        # which joins text-showing operators with NO separator — so a failed
+        # lookup did not degrade to worse spacing, it degraded to NONE.
+        # `MPSCdoeshaveapaymentplan` reached the corpus that way and stayed
+        # three weeks, mis-filed as a cosmetic title bug. Lexical retrieval
+        # cannot match a word with no spaces around it, so that record's
+        # payment-plan answer was unfindable.
+        #
+        # A single glued word is a far better key than a line. Repair what can
+        # be repaired rather than discarding the whole line's spacing.
+        return repair_glued(line, sq, idx, plain), cursor
     start, end = idx[pos], idx[pos + len(key) - 1] + 1
     return " ".join(plain[start:end].split()), pos + len(key)
+
+
+GLUED = re.compile(r"[A-Za-z][A-Za-z.]{11,}")
+
+
+def repair_glued(line, sq, idx, plain):
+    """Re-space long unbroken runs one at a time, using pypdf's own text.
+
+    Only touches runs of 12+ letters that pypdf renders WITH spaces — an email
+    address or a URL has no spaces in either extraction, so it is found as
+    itself and left alone."""
+    out = line
+    for run in GLUED.findall(line):
+        pos = sq.find(squash(run))
+        if pos < 0:
+            continue
+        start, end = idx[pos], idx[pos + len(squash(run)) - 1] + 1
+        spaced = " ".join(plain[start:end].split())
+        if spaced and spaced != run:
+            out = out.replace(run, spaced, 1)
+    return out
 
 
 def lines_with_font(path):

@@ -48,12 +48,15 @@ OUTPUT
 import argparse
 import csv
 import json
+from collections import Counter
 import re
 import time
 from pathlib import Path
 
 from retrieval_eval import BM25, contains_all
 from embed_eval import Embedded, rrf, OUT
+
+TOKEN = re.compile(r"[a-z0-9$]+")
 
 RECORDS = Path("data/records-real.jsonl")
 QUESTIONS = Path("data/questions-real.jsonl")
@@ -163,6 +166,149 @@ def refusal_kind(answer):
 
 # The judge sees the question, the context and the answer — never the expected
 # label. Giving it the label would make it agree with the eval by construction.
+# ---------------------------------------------------------------- the guards
+#
+# Four deterministic checks, ported from the patient-question demo built on
+# real medical practice websites, where each caught something a model judge did
+# not. They cost no model call and no latency.
+#
+# They run BEFORE the judge and can only turn an answer into a refusal, never
+# the other way round, so turning them on is always conservative.
+
+STOP = set((
+    "a an the and or but if of to in on at for with from by is are was were be "
+    "been being am do does did have has had you your yours our ours we they them "
+    "their it its this that these those there here as not no nor yes can could "
+    "will would shall should may might must please thank thanks about into over "
+    "under than then so such other some any all more most us me my i also just "
+    "which who whom what when where why how during while after before").split())
+
+
+def content_tokens(s):
+    return [t for t in TOKEN.findall(s.lower()) if t not in STOP and len(t) > 2]
+
+
+def stem(t):
+    return t[:-1] if len(t) > 4 and t.endswith("s") else t
+
+
+def grounding(answer_text, context):
+    """How much of the answer's vocabulary is actually in the retrieved text.
+
+    Catches an answer assembled out of general knowledge. It does NOT catch an
+    inference drawn from the right page — "we are taking new patients" from a
+    page about new-patient FORMS scores 89% here, because every word really is
+    on that page."""
+    ctx = set(TOKEN.findall(context.lower()))
+    at = content_tokens(answer_text)
+    if not at:
+        return 1.0, []
+    missing = [t for t in at if t not in ctx]
+    return 1 - len(missing) / len(at), missing
+
+
+# The trailing [\d,.:]* swallows a sentence-ending period, so a price at the
+# end of a sentence came out as "$240." and was compared against a source
+# containing "$240" — reported as an invented number when it was quoted
+# correctly. Any figure that ends a sentence hit this.
+NUM = re.compile(r"\$?\d[\d,:]*(?:\.\d+)?\s*(?:am|pm)?", re.I)
+
+
+def norm_num(t):
+    return t.strip().strip(".,;:").lower().replace(",", "")
+
+
+def bad_numbers(answer_text, context):
+    """Figures in the answer that are not in the source.
+
+    The highest-value check of the four. On a real dental practice the model
+    produced an after-hours phone number — correct local area code, entirely
+    invented — while the practice's real number sat in the same context."""
+    flat = " ".join(context.split()).lower().replace(",", "")
+    return [m.strip() for m in NUM.findall(answer_text)
+            if norm_num(m) and norm_num(m) not in flat]
+
+
+def best_sentence(answer_text, chunk_text):
+    """The one sentence from a record that the answer leans on.
+
+    Preferring sentences that carry the answer's NUMBERS, not merely its words:
+    asked for opening hours, an earlier version answered correctly and then
+    quoted "Additional hours may be arranged" — true, same page, and containing
+    none of the times."""
+    aw = set(TOKEN.findall(answer_text.lower()))
+    nums = {norm_num(n) for n in NUM.findall(answer_text)}
+    best, score = "", 0.0
+    for sent in re.split(r"(?<=[.!?])\s+|\n", chunk_text):
+        sent = sent.strip()
+        if len(sent) < 25:
+            continue
+        toks = set(TOKEN.findall(sent.lower()))
+        ov = len(aw & toks) / (len(toks) ** 0.5 or 1)
+        if nums:
+            here = {norm_num(n) for n in NUM.findall(sent)}
+            ov *= 1 + 2 * len(nums & here) / len(nums)
+        if ov > score:
+            best, score = sent, ov
+    return best[:340]
+
+
+def relevance(question, quote, idf=None):
+    """Does the sentence being cited mention what was ASKED?
+
+    Grounding asks whether the answer is in the source. This asks whether the
+    source is about the question, and the two come apart completely. Asked what
+    to do after hours, a demo answered "you can apply makeup and return to your
+    daily activities right away" — lifted verbatim from a cosmetic aftercare
+    page. Grounding scored it 100%.
+
+    That is this project's own refusal finding in a new place: similarity to a
+    query is not the same property as answering it, and `refused 0/15` across
+    three rankers was the first time it showed up.
+
+    Words are weighted by how rare they are in this corpus, using the BM25 index
+    that already exists. Counting them equally refuses correct answers, because
+    a question's verb ("what insurance do you TAKE") never appears in the
+    sentence that answers it."""
+    qt = content_tokens(question)
+    if not qt:
+        return 1.0, []
+    pt = {stem(t) for t in TOKEN.findall(quote.lower())}
+
+    def w(t):
+        return (idf or {}).get(t, 1.0)
+
+    total = sum(w(t) for t in qt) or 1.0
+    have = sum(w(t) for t in qt if stem(t) in pt)
+    return have / total, sorted({t for t in qt if stem(t) not in pt})
+
+
+def guard(question, answer_text, context, chunks, hits, idf,
+          floor=0.80, rel_floor=0.55):
+    """Returns (reason, quote). A reason means the answer is held back."""
+    nums = bad_numbers(answer_text, context)
+    if nums:
+        return f"invented number(s): {', '.join(nums[:4])}", ""
+    score, _ = grounding(answer_text, context)
+    if score < floor:
+        return f"only {score:.0%} of the answer is in the retrieved text", ""
+    best, bs = None, 0.0
+    aw = set(content_tokens(answer_text))
+    for i in hits:
+        q = best_sentence(answer_text, chunks[i])
+        if not q:
+            continue
+        ov = len(aw & set(content_tokens(q))) / (len(aw) or 1)
+        if ov > bs:
+            best, bs = q, ov
+    if not best or bs < 0.30:
+        return "no sentence in the retrieved records supports it", ""
+    rel, miss = relevance(question, best, idf)
+    if rel < rel_floor:
+        return f"the sentence it used never mentions {', '.join(miss[:3])}", best
+    return "", best
+
+
 JUDGE = (
     "You are checking whether an answer is supported by the source text it was "
     "supposed to come from.\n\n"
@@ -207,6 +353,8 @@ def main():
     ap.add_argument("--prompt", choices=sorted(PROMPTS), default="v1",
                     help="which grounded prompt to answer with")
     ap.add_argument("--label", default="", help="extra tag for the output files")
+    ap.add_argument("--guards", action="store_true",
+                    help="run the four deterministic checks before the judge")
     ap.add_argument("--gate", default="",
                     help="model that decides COVERED/MISSING before answering; "
                          "must differ from --judge, or the grader is grading "
@@ -269,6 +417,14 @@ def main():
             secs += asecs
 
         kind = refusal_kind(answer)
+
+        # The guards can only turn an answer into a refusal, so enabling
+        # them is always the conservative direction. Off by default so the
+        # Week 7 numbers stay reproducible; --guards writes its own files.
+        guarded, quote = "", ""
+        if args.guards and not kind:
+            guarded, quote = guard(q["question"], answer, context, texts,
+                                   [i for i, _ in hits], bm.idf)
         raw_judge, _ = ask_model(
             cli, args.judge, JUDGE,
             f"SOURCE TEXT:\n{context}\n\nQUESTION:\n{q['question']}\n\n"
@@ -276,7 +432,7 @@ def main():
         v = verdict_of(raw_judge)
         # A refusal is not a judgement call, so it overrules a small judge that
         # misreads one — including a refusal the model mangled.
-        if kind:
+        if kind or guarded:
             v = "REFUSED"
 
         retrieved_ok = ""
@@ -285,7 +441,8 @@ def main():
             retrieved_ok = int(any(i in good for i, _ in hits))
 
         rows.append({"qid": q["qid"], "expect": q["expect"], "verdict": v,
-                     "gate": gate, "refusal": kind or "",
+                     "gate": gate, "refusal": kind or "", "guard": guarded,
+                     "quote": quote[:200],
                      "retrieved": retrieved_ok,
                      "secs": round(secs, 1), "question": q["question"],
                      "answer": answer.replace("\n", " ")})
@@ -324,6 +481,7 @@ def main():
     print(f"  over-refused       {len(over_refused)}      "
           f"declined even though the answer was retrieved")
     corrupt = [r for r in rows if r["refusal"] == "corrupt"]
+    held = [r for r in rows if r["guard"]]
 
     # Gate accuracy against something objective, not against the label.
     #
@@ -346,6 +504,18 @@ def main():
     print(f"  mangled refusals   {len(corrupt)}      "
           f"meant to refuse, dropped a word from the sentence")
     print(f"{'=' * 62}")
+    if args.guards:
+        kinds = Counter("numbers" if "number" in r["guard"] else
+                        "grounding" if "of the answer" in r["guard"] else
+                        "no source" if "no sentence" in r["guard"] else
+                        "relevance" for r in held)
+        print(f"  GUARDS held back {len(held)} answer(s) before the judge")
+        for k, n in kinds.most_common():
+            print(f"    {k:<12} {n}")
+        for r in held:
+            if r["expect"] == "answerable" and r["retrieved"] == 1:
+                print(f"    ! {r['qid']} answerable AND retrieved: {r['guard']}")
+        print(f"{'=' * 62}")
     if gated:
         right = [r for r in gated if r["gate"] == gate_truth(r)]
         cov_t = [r for r in gated if gate_truth(r) == "COVERED"]
@@ -380,13 +550,15 @@ def main():
         parts.append(args.prompt)
     if args.gate:
         parts.append("gated")
+    if args.guards:
+        parts.append("guards")
     if args.limit:
         parts.append(f"limit{args.limit}")
     if args.label:
         parts.append(args.label)
     suffix = "-" + "-".join(parts) if parts else ""
-    cols = ["qid", "expect", "verdict", "gate", "refusal", "retrieved", "secs",
-            "question", "answer"]
+    cols = ["qid", "expect", "verdict", "gate", "refusal", "guard", "quote",
+            "retrieved", "secs", "question", "answer"]
     with open(OUT / f"judge{suffix}.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()

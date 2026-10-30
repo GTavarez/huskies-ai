@@ -4,7 +4,7 @@
 
 | ranker | hit@5 | worst refusal leak |
 |---|---|---|
-| bm25 | 14/30 (46%) | 17.91 |
+| bm25 | 15/30 (50%) | 17.92 |
 | embed | 24/30 (80%) | 0.71 |
 | hybrid | 24/30 (80%) | 0.03 |
 
@@ -17,7 +17,6 @@
 - **embeddings only** — What age groups does the club have?
 - **embeddings only** — How big is the time commitment?
 - **embeddings only** — Can I coach from the sideline?
-- **embeddings only** — Is there a payment plan?
 - **embeddings only** — What happens if it rains?
 - **BM25 only** — Is there a tryout?
 - **BM25 only** — Is there a code of conduct I have to sign?
