@@ -1,61 +1,126 @@
 # huskies-ai
 
-Capstone repo for a 10-week solo run of GAI 480 — Applied Generative AI Engineering.
-By Week 10 this is a deployed, evaluated retrieval system over a youth sports club's
-documents. Right now it is Week 1.
+A retrieval system over four real youth soccer club handbooks, built to answer
+the questions parents actually ask — and an evaluation harness that spent eight
+weeks catching the ways it, and I, were wrong.
 
-## Week 0 — setup (do this first, finish it, then stop)
+The retrieval is ordinary. The eval is the work.
+
+---
+
+## Where it stands
+
+141 records from four real club handbooks · 40 questions written before any
+retriever was run · 30 answerable, 10 the documents genuinely do not answer.
+
+| | |
+| --- | --- |
+| **answerable** — the answer sits intact in one record | **30/30** |
+| BM25 hit@5 | 15/30 (50%) |
+| embeddings hit@5 (`nomic-embed-text`) | 24/30 (80%) |
+| hybrid, reciprocal rank fusion | 24/30 (80%) |
+| **refusal: any score threshold that separates answerable from unanswerable** | **0/10, on all three rankers** |
+| model judge reading the retrieved context | **8/10 correct refusals** |
+| answers it invented | **0** |
+
+`answerable` at 30/30 means no question is lost to chunking — every remaining
+miss is ranking. It took six weeks of extraction bugs to get there: page
+rotation, word spacing, empty-body merges, fee tables promoted to headings.
+
+---
+
+## The finding
+
+**No retrieval score tells you whether a passage answers a question.**
+
+Across three ranking functions, two question sets and a purge of five bad
+labels, the worst scoring unanswerable question always outscored the weakest
+genuine hit. BM25's worst leak scores 17.9 against a weakest real hit of 4.2.
+There is no cutoff. Not a tuning problem — a ranking score measures similarity
+between a query and a passage, and whether the passage *answers* it is a
+different property that nothing in the ranking function looks at.
+
+A second model reading the question, the context and the answer gets 8 of 10.
+
+The same shape showed up again in Week 8, one layer up: a **gate** predicting
+whether an answer could be produced tied a constant (24/40 against 24/40),
+while the **judge** verifying an answer that already existed worked.
+Verification beats prediction, twice, at two different levels of the stack.
+
+_The judge's own error rate is being hand-audited; `judge_audit.py` samples the
+rows where its mistakes concentrate. Until that count exists, 8/10 is quoted
+without an error bar and says so._
+
+---
+
+## What went wrong, and what it cost
+
+The week notes in `docs/` are the real content. Each one is a measurement that
+turned out to be wrong and what fixed it.
+
+| | |
+| --- | --- |
+| [week-04](docs/week-04.md) | Five hand reviews of one corpus gave 20%, 10%, 15%, 25%, 15%. Three of the five were measuring my own tooling — a viewer truncating records at 600 characters, labels I had supplied, a prompt offering one option and asking yes or no. |
+| [week-05](docs/week-05.md) | Replaced human judgement with answer keys and `hit@k`. BM25 and embeddings tied at 8/11 while disagreeing on four questions — reading only the totals would have concluded "embeddings add nothing". |
+| [week-06](docs/week-06.md) | The key proposer and the scorer were both BM25. The eval had been measuring itself. A cold audit dropped hit@5 from 72% to 35%, and the rigged comparison had been quoted for twelve days. |
+| [week-07](docs/week-07.md) | A conclusion built on a label I had already flagged as unreliable. The model had quoted its source almost word for word and I called it a fabrication. Retracted in place rather than deleted. |
+| [week-08](docs/week-08.md) | Four guards that worked on website content broke 14 of 30 answers here. A lexical relevance check only earns its place where chunks are topically incoherent — on heading-delimited sections it is a paraphrase tax. |
+
+Two rules came out of it that transfer past this project:
+
+- **When the thing generating your test data and the thing being tested share a
+  mechanism, the test measures the mechanism.** It does not fail loudly. It
+  produces a believable number, slightly flattering.
+- **Never conclude a document does not say something from a search that failed
+  to find it.** Absence is a claim about the whole document; ranking only
+  reports what rose to the top. That error set five labels wrong and five
+  findings about the source documents wrong, independently.
+
+---
+
+## Running it
 
 ```bash
-git clone <your-repo-url> huskies-ai && cd huskies-ai
-python3 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env                                    # then put your key in .env
-python verify.py                                        # must print "All checks passed"
+cp .env.example .env                                  # model config; see config.py
+python verify.py                                      # must print "All checks passed"
 ```
-
-`verify.py` is the Week 0 gate. Do not start Week 1 until it exits clean.
-
-**Pick your model path now and keep it for all ten weeks.** Hosted API or a local
-model — either works, and every exercise is designed for both. Switching mid-course
-invalidates every baseline you have recorded. The choice lives in `.env`; the
-configuration that gets stamped into result files lives in `config.py`.
-
-## Week 1
 
 ```bash
-python smoke_test.py                  # Weekday B  — proves the model answers, shows token counts
-python src/tokenizers_compare.py      # Weekend    — three tokenizers, one chart
-python src/cost_table.py --rate 3.00  # Weekend    — per-source cost, use YOUR provider's rate
+python ingest.py                     # PDFs -> records
+python retrieval_eval.py             # answerable, hit@5, the refusal floor
+python embed_eval.py --hybrid        # BM25 vs embeddings vs RRF, with set differences
+python judge.py                      # the model judge
+python judge_audit.py                # sample its verdicts for a hand audit
 ```
 
-## Layout
+Everything runs locally against Ollama or any OpenAI-compatible endpoint. The
+model configuration lives in one file and is stamped into every result, because
+a baseline recorded under an unknown configuration cannot be compared with
+anything later.
 
-```
-config.py                  model config + client. Everything imports from here.
-verify.py                  the Week 0 gate
-smoke_test.py              first model call, token accounting, temperature check
-src/tokenizers_compare.py  word vs character vs subword across the corpus
-src/cost_table.py          joins metadata, prices the corpus by source type
-data/docs/                 the corpus — SAMPLE FIXTURES, replace in Week 3
-data/metadata.csv          one row per document
-out/                       generated results (gitignored except .gitkeep)
-docs/expected-output/      what the scripts produced on a working setup
-```
+---
 
-## The sample corpus is a placeholder
+## The corpus is not in this repo
 
-`data/docs/` ships with 20 short documents for an invented club, "Northside Youth FC".
-They exist so the scripts run on day one. In Week 3 you replace them with real
-Empire State Huskies documents and freeze the list — that is the Week 3 deliverable.
+`data/raw/real/` and `data/records-real.jsonl` are gitignored. They are four
+other clubs' documents, shared for this work, and this repository is public.
+`data/docs/` holds small synthetic fixtures so the pipeline runs without them.
 
-One rule when you swap them in: **keep only documents whose answers you can verify.**
-A document you cannot check ground truth against is worse than no document, because
-it produces evaluation rows you cannot score.
+The numbers above are therefore not reproducible from a clone, and saying so is
+better than quietly shipping someone else's handbooks.
 
-## Rules that survive the whole course
+---
 
-1. One variable at a time. A result from changing three things at once proves nothing.
-2. Every result file records `config.stamp()`. Unrecorded configuration means an
-   uncomparable baseline.
-3. Commit what did not work. The negative results are the evidence you were measuring.
+## What is still open
+
+- Hand-audit count for the judge — the error bar on every figure here
+- More must-refuse questions; ten rows at ten points each is coarser than the
+  effects being measured
+- Metadata filtering by club. Four handbooks contradict each other on uniforms,
+  conduct, coaching and tournament fees, and retrieval has no idea which club a
+  parent belongs to — it will hand them the wrong one confidently
+- Weighting the question set. Hybrid and embeddings tie at 24/30 and hit a
+  *different* 24, so the choice between them cannot be settled while every
+  question is worth 1/30
