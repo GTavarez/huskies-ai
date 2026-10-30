@@ -162,16 +162,117 @@ defect that had been mis-filed as cosmetic for three weeks.
 
 ---
 
+## Auditing the judge, and getting the sample wrong twice
+
+Every judge figure in this repo — 8/10 correct refusals, 24/30 grounded, the
+whole guards comparison — has been quoted since Week 7 with no error bar. The
+fix is ten rows read by hand. Choosing *which* ten took two attempts.
+
+**First attempt: the first ten rows of `judge.csv`.** Four of them are
+refusals, and on a refusal `refusal_kind()` sets the verdict and the judge's
+opinion is discarded. Those four audit a component that did not run. Across the
+whole file it is 14 of 40 — **more than a third of the rows cannot tell you
+anything about the judge.**
+
+**Second attempt: the first ten rows the judge actually ruled on.** Taken in
+qid order, which on this set returns ten `answerable` + SUPPORTED rows: the
+easiest cases in the file, and all written in the same sitting, so they
+resemble each other. A flattering number carrying no information.
+
+**What it samples now.** The judge's errors concentrate in two places, so those
+come first:
+
+- a **refuse** row it called SUPPORTED — it endorsed an answer to a question
+  the corpus is not supposed to answer (q21, q29)
+- any **UNSUPPORTED** verdict — it rejected something, and in Week 8 it rejected
+  two answers that quoted their source word for word
+
+Then the ordinary rows, spread across the file rather than taken from the
+front.
+
+`judge_audit.py` prints each sampled row with the answer and the handbook
+sentences nearest to it, and deliberately does not say whether the verdict is
+right. A TA supplying a label table is how the Week 4 self-contained baseline
+stopped being a measurement; the same mistake made twice would be harder to
+explain.
+
+### The number
+
+_Pending: ten rows read, count of correct verdicts out of ten. Once recorded it
+goes beside every judge figure in this file and in `week-07.md`. Until then,
+8/10 and 24/30 are quoted without an error bar — and on a 10-row refuse set, a
+one-question move and noise are the same size._
+
+---
+
+## Routing, closed
+
+Week 7 killed a 1B gate and said the idea survived — what died was the
+implementation, and a proper test needed three capable models for three jobs.
+`gemma2:2b` arrived, so: gate `gemma2:2b`, answerer `llama3.2:latest`, judge
+`qwen2.5:1.5b`. All different, no model grading its own work.
+
+| | correct |
+| --- | --- |
+| `llama3.2:1b` gate (Week 7) | 13/40 |
+| **`gemma2:2b` gate** | **24/40** |
+| constant "COVERED" | **24/40** |
+| constant "MISSING" | 16/40 |
+
+The better model nearly doubled the raw score and **tied the trivial baseline
+exactly.** It answered COVERED 30 times out of 40.
+
+| | |
+| --- | --- |
+| says COVERED when the answer IS in context | 19/24 (79%) |
+| says COVERED when it is NOT | 11/16 (69%) |
+
+Ten points of separation, where the 1B gate had none at all (16% vs 19%,
+slightly inverted). So gemma2 is genuinely better at the task and still not
+good enough to beat saying one word every time.
+
+It also cost: grounded 24/30 → **21/30**, over-refused 4 → **7**. Three
+answerable questions whose answers had been retrieved were routed out before
+anything generated. Correct refusals did not move.
+
+**Routing is closed.** Two gate models, both at or below a constant.
+
+### Why the gate fails where the judge works
+
+Same models, same corpus, two jobs that look similar and are not:
+
+| | sees | has to |
+| --- | --- | --- |
+| **gate** | question + context | predict whether an answer can be produced |
+| **judge** | question + context + the answer | check one against the other |
+
+The judge gets 8/10 on refusals where no retrieval score managed better than 0.
+The gate ties a constant. The difference is that checking is a comparison and
+predicting is a guess, and a 2B model can do the first.
+
+**The rule: spend the extra model call after generation, not before.** A gate
+saves the generation when it is right and is wrong often enough to cost more
+than it saves. A verifier only ever runs on something that already exists, and
+can be wrong without inventing anything.
+
+That is the same shape as this project's oldest finding. A retrieval score
+cannot tell whether a passage answers a question; a model reading the passage
+and the answer together can. Prediction loses to verification both times.
+
+---
+
 ## Carried forward
 
 1. ~~Fix the glued records~~ — **done**: two, not four, and the cause was
    `respace` falling back to the font pass's unspaced output. `repair_glued()`
    now re-spaces word by word. BM25 +1 question
-2. **Hand-audit the judge** — ten rows, counted. Still never done
+2. **Hand-audit the judge** — tooling done (`judge_audit.py`, error-weighted
+   sampling). The count itself is still outstanding
 3. **Five more must-refuse questions** — ten rows at ten points each is coarser
    than the effects being measured
-4. **Routing, properly** — gate `gemma2:2b`, answerer `llama3.2`, judge
-   `qwen2.5:1.5b`. Three different models, finally available
+4. ~~Routing, properly~~ — **closed**. gemma2 gate scores 24/40 against a
+   constant's 24/40, and costs three grounded answers. Verification after
+   generation works; prediction before it does not
 5. Re-run v1 vs v2 on the audited set — retracted in Week 7, never replaced
 6. Metadata filtering by club
 7. From Week 3: `POST /infer` with a typed schema, the Gradio tab,
