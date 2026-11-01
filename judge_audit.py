@@ -73,10 +73,51 @@ def evidence(answer, books, n=3):
     return out
 
 
+def write_worksheet(out, sample, books, src, total, ruled_n, skipped):
+    """A file you can read without fighting terminal wrapping.
+
+    The point of the audit is a number a person produced by reading. If the
+    reading is unpleasant it does not happen, and the number stays missing —
+    which is how this one stayed open for two weeks."""
+    L = []
+    L.append("# Judge audit worksheet\n")
+    L.append(f"From `{src}` — {total} rows, {ruled_n} the judge actually ruled "
+             f"on, {skipped} refusals where its opinion was discarded.\n")
+    L.append("**The judge said SUPPORTED on every row below.** For each one, ask:\n")
+    L.append("> Does the handbook text actually say what the answer says — "
+             "and does it answer the question that was asked?\n")
+    L.append("**Y** = the judge was right. **N** = it approved something it "
+             "should not have.\n")
+    L.append("---\n")
+    for r in sample:
+        note = ""
+        if r["expect"] == "refuse" and r["verdict"] == "SUPPORTED":
+            note = "  \n*(labelled must-refuse — the corpus is not supposed to answer this)*"
+        L.append(f"## {r['qid']} — Y / N{note}\n")
+        L.append(f"**Q:** {r['question']}\n")
+        L.append(f"**Answer given:**\n\n> {r['answer'][:600]}\n")
+        L.append("**What the handbooks say near it:**\n")
+        for club, sent in evidence(r["answer"], books):
+            L.append(f"- *[{club}]* {sent[:300]}")
+        L.append("")
+    L.append("---\n")
+    L.append("## Tally\n")
+    L.append("| row | Y or N |")
+    L.append("| --- | --- |")
+    for r in sample:
+        L.append(f"| {r['qid']} | |")
+    L.append("\n**Count of Y: ___ out of %d**\n" % len(sample))
+    L.append("That count is the error bar on every judge figure in this repo.")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(L), encoding="utf-8")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", default="out/judge.csv")
     ap.add_argument("--n", type=int, default=10)
+    ap.add_argument("--out", default="",
+                    help="also write a markdown worksheet, e.g. docs/judge-audit.md")
     args = ap.parse_args()
 
     rows = list(csv.DictReader(open(args.file, encoding="utf-8")))
@@ -137,6 +178,11 @@ def main():
             print(f"     [{club}] " + textwrap.fill(s[:240], 66,
                                                     subsequent_indent="              "))
         print()
+    if args.out:
+        write_worksheet(Path(args.out), sample, books, args.file,
+                        len(rows), len(ruled), skipped)
+        print(f"\n  worksheet: {args.out}")
+
     print("=" * 74)
     print(f"  Read {len(sample)} rows. For each: did the judge get it right?")
     print("  Count the yeses. That count is the error bar on every judge number")

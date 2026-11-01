@@ -1,5 +1,11 @@
 # Week 8 — Guards that worked on websites, and did not work here
 
+> **Read "The re-run, after the flips" before quoting any figure from this
+> file.** Every experiment below was measured against 30 answerable · 10
+> must-refuse. The hand audit found two of those labels wrong, so the set is
+> now 32 · 8 and all three evals were re-run. The experiments are left at the
+> numbers they were actually run on; the restated totals are in that section.
+
 ## The experiment
 
 Four deterministic checks were built for a patient-question demo running on
@@ -196,12 +202,116 @@ right. A TA supplying a label table is how the Week 4 self-contained baseline
 stopped being a measurement; the same mistake made twice would be harder to
 explain.
 
-### The number
+### The number: 10/10
 
-_Pending: ten rows read, count of correct verdicts out of ten. Once recorded it
-goes beside every judge figure in this file and in `week-07.md`. Until then,
-8/10 and 24/30 are quoted without an error bar — and on a 10-row refuse set, a
-one-question move and noise are the same size._
+Ten rows read by hand against the source handbooks. **The judge's verdict was
+correct on all ten.** Every judge figure in this repo can now be quoted with
+that attached.
+
+Two of the ten were the rows flagged as most likely wrong — `refuse` questions
+the judge had marked SUPPORTED. On reading, the judge was right and **the
+labels were wrong**: club-03 does answer both.
+
+| | question | labelled | actually |
+| --- | --- | --- | --- |
+| q21 | Do boys and girls play on the same teams? | refuse | club-03 answers it |
+| q29 | When are tryouts held? | refuse | club-03 answers it |
+
+### What the audit found that no script would have
+
+The reading produced something the harness cannot measure:
+
+> *"All were answered, just the style needs to be improved to get the full
+> answer."* — and on q31, *"it answers it but not fully."*
+
+q31 asks what a child should wear to practice. The answer explains that turf
+shoes are more comfortable than cleats. It is **100% grounded** — that sentence
+is on club-02's page — and it is not what a parent asked for.
+
+**The judge asks one question: is this supported? It never asks: is this the
+whole answer.** So an answer can be perfectly grounded and practically useless,
+and every metric here scores it as a success.
+
+Grounded ≠ complete. There is no completeness measure in this project, the
+judge cannot supply one, and the only reason it surfaced is that a person read
+ten answers and noticed they were thin. That is what the hand audit was for,
+and it found something bigger than its own error bar.
+
+### The refuse set is shrinking, and that is now the risk
+
+| | must-refuse rows |
+| --- | --- |
+| Week 5 | 15 |
+| after the Week 7 audit | 10 |
+| after this audit | **8** |
+
+Each flip has been individually justified by the source text. The trend is the
+problem: a question set that keeps losing must-refuse rows drifts toward "the
+corpus answers everything", and the refusal result is this project's most
+durable finding. At eight rows each one is worth 12.5 points, which is coarser
+than any effect being measured.
+
+**Writing more must-refuse questions stops being a nice-to-have here.** It is
+the precondition for the refusal metric continuing to mean anything.
+
+---
+
+## The re-run, after the flips
+
+Every number in this file above this line was measured on **30 answerable · 10
+must-refuse**. Two of those labels were wrong — q21 and q29, found by the hand
+audit — so the set is now **32 answerable · 8 must-refuse**, and all three
+evals were re-run from scratch rather than adjusted on paper.
+
+```
+python retrieval_eval.py --by-club
+python embed_eval.py --by-club
+python embed_eval.py --by-club --hybrid
+python judge.py
+```
+
+| | 30 · 10 | 32 · 8 |
+| --- | --- | --- |
+| **answerable** — answer intact in one record | 30/30 | **32/32 (100%)** |
+| BM25 hit@5, club-scoped | 19/30 (63%) | **21/32 (65%)** |
+| embeddings hit@5, club-scoped | 25/30 (83%) | **27/32 (84%)** |
+| hybrid (RRF) hit@5, club-scoped | 24/30 (80%) | **26/32 (81%)** |
+| refusal floor separates | no, 0/10 | **no, 0/8** |
+| **judge correct refusals** | 8/10 | **8/8** |
+| judge answered, grounded | 24/30 | **26/32** |
+| invented | 0 | **0** |
+| over-refused | 4 | **4** |
+| mangled refusals | 1 | **1** |
+
+BM25 by document: club-02 6/13 · club-03 6/8 · club-04 9/11. club-01 is the
+only handbook with no answerable question against it.
+
+### What actually changed, and what only looks like it changed
+
+**The judge did not improve.** It gave q21 and q29 the same verdict before and
+after; what moved is the label it was being scored against. `8/10` and `8/8`
+are the same eight correct decisions, and the two that were counted as errors
+were the question set being wrong, not the model. This is the one place in the
+repo where a metric went up because a measurement got more accurate, and it is
+worth naming as such — a reader comparing Week 7's 80% to this 100% would
+otherwise conclude something was fixed.
+
+**Both flipped rows landed grounded.** 24/30 → 26/32: the two new answerable
+rows were already being answered from the retrieved context, which is why the
+judge endorsed them in the first place.
+
+**`8/8` is the most fragile number in this file.** One flip in either direction
+moves it 12.5 points, and the set has now gone 15 → 10 → **8**, always in the
+same direction. Writing more must-refuse questions stops being a nice-to-have
+here: it is the precondition for the refusal metric continuing to mean
+anything. A perfect score on eight rows is not evidence that the judge refuses
+well — it is evidence that nothing has yet been written that it refuses badly.
+
+**Hybrid is now behind embeddings, by one question.** 26/32 against 27/32. That
+gap is a single row, every row is worth 1/32, and nothing in the question set
+says which of the thirty-two matters more than the others. The comparison
+cannot be settled at this resolution — weighting the set is the prerequisite,
+not another re-run.
 
 ---
 
@@ -411,15 +521,24 @@ Worth recording because it is the bias to correct for, not a run of bad luck:
 1. ~~Fix the glued records~~ — **done**: two, not four, and the cause was
    `respace` falling back to the font pass's unspaced output. `repair_glued()`
    now re-spaces word by word. BM25 +1 question
-2. **Hand-audit the judge** — tooling done (`judge_audit.py`, error-weighted
-   sampling). The count itself is still outstanding
-3. **Five more must-refuse questions** — ten rows at ten points each is coarser
-   than the effects being measured
-4. ~~Routing, properly~~ — **closed**. gemma2 gate scores 24/40 against a
+2. ~~Hand-audit the judge~~ — **done**: 10/10, and it cost two question-set
+   labels. `judge_audit.py` keeps the error-weighted sampling, so the next
+   audit does not start from the easiest rows again
+3. **Five more must-refuse questions** — now the top of this list. Eight rows
+   at 12.5 points each is coarser than any effect being measured, and the set
+   has only ever shrunk
+4. **A completeness measure** — the audit's own finding. q31 is 100% grounded
+   and does not answer the question. Nothing here measures whether an answer is
+   whole, and the judge cannot be asked to: "is this supported" and "is this
+   all of it" are different questions
+5. **Weight the question set** — embeddings 27/32 against hybrid 26/32 is one
+   row, and every row is worth the same 1/32. The ranker comparison cannot be
+   settled until some questions count for more than others
+6. ~~Routing, properly~~ — **closed**. gemma2 gate scores 24/40 against a
    constant's 24/40, and costs three grounded answers. Verification after
    generation works; prediction before it does not
-5. Re-run v1 vs v2 on the audited set — retracted in Week 7, never replaced
-6. ~~Metadata filtering by club~~ — **done**, BM25 15/30 → 19/30. What remains
+7. Re-run v1 vs v2 on the audited set — retracted in Week 7, never replaced
+8. ~~Metadata filtering by club~~ — **done**, BM25 15/30 → 19/30. What remains
    after it is paraphrase, which is an embeddings job, not a chunking one
-7. From Week 3: `POST /infer` with a typed schema, the Gradio tab,
+9. From Week 3: `POST /infer` with a typed schema, the Gradio tab,
    `pipelines_bench.py` still never run

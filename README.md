@@ -11,21 +11,33 @@ The retrieval is ordinary. The eval is the work.
 ## Where it stands
 
 141 records from four real club handbooks · 40 questions written before any
-retriever was run · 30 answerable, 10 the documents genuinely do not answer.
+retriever was run · 32 answerable, 8 the documents genuinely do not answer.
+
+Retrieval figures are club-scoped, which is how the system ships: every
+answerable question names the handbook it is about, so the search is restricted
+to that club's records.
 
 | | |
 | --- | --- |
-| **answerable** — the answer sits intact in one record | **30/30** |
-| BM25 hit@5 | 15/30 (50%) |
-| embeddings hit@5 (`nomic-embed-text`) | 24/30 (80%) |
-| hybrid, reciprocal rank fusion | 24/30 (80%) |
-| **refusal: any score threshold that separates answerable from unanswerable** | **0/10, on all three rankers** |
-| model judge reading the retrieved context | **8/10 correct refusals** |
+| **answerable** — the answer sits intact in one record | **32/32** |
+| BM25 hit@5 | 21/32 (65%) |
+| embeddings hit@5 (`nomic-embed-text`) | 27/32 (84%) |
+| hybrid, reciprocal rank fusion | 26/32 (81%) |
+| **refusal: any score threshold that separates answerable from unanswerable** | **0/8, on all three rankers** |
+| model judge reading the retrieved context | **8/8 correct refusals** |
 | answers it invented | **0** |
+| answered and grounded | 26/32 |
 
-`answerable` at 30/30 means no question is lost to chunking — every remaining
+`answerable` at 32/32 means no question is lost to chunking — every remaining
 miss is ranking. It took six weeks of extraction bugs to get there: page
 rotation, word spacing, empty-body merges, fee tables promoted to headings.
+
+Two caveats the numbers do not carry on their own. **8/8 is eight rows**, and
+the must-refuse set has gone 15 → 10 → 8 as hand audits found questions the
+handbooks do answer after all — each flip justified by the source text, the
+trend a problem; more must-refuse questions is the top of the Week 8 list.
+And **grounded is not complete**: an answer can quote its source exactly and
+still not be what was asked. Nothing here measures that yet.
 
 ---
 
@@ -40,16 +52,20 @@ There is no cutoff. Not a tuning problem — a ranking score measures similarity
 between a query and a passage, and whether the passage *answers* it is a
 different property that nothing in the ranking function looks at.
 
-A second model reading the question, the context and the answer gets 8 of 10.
+A second model reading the question, the context and the answer gets 8 of 8 —
+and got the same eight right when the set was ten and two of its "errors"
+turned out to be mislabelled questions.
 
 The same shape showed up again in Week 8, one layer up: a **gate** predicting
 whether an answer could be produced tied a constant (24/40 against 24/40),
 while the **judge** verifying an answer that already existed worked.
 Verification beats prediction, twice, at two different levels of the stack.
 
-_The judge's own error rate is being hand-audited; `judge_audit.py` samples the
-rows where its mistakes concentrate. Until that count exists, 8/10 is quoted
-without an error bar and says so._
+_The judge has been hand-audited: ten rows read against the source handbooks,
+sampled by `judge_audit.py` from where its mistakes concentrate rather than
+from the front of the file. **Ten of ten verdicts correct.** Two of the ten
+were rows the judge had been scored wrong on — and the labels were wrong, not
+the judge. Every judge figure above can be quoted with that attached._
 
 ---
 
@@ -115,12 +131,12 @@ better than quietly shipping someone else's handbooks.
 
 ## What is still open
 
-- Hand-audit count for the judge — the error bar on every figure here
-- More must-refuse questions; ten rows at ten points each is coarser than the
-  effects being measured
-- Metadata filtering by club. Four handbooks contradict each other on uniforms,
-  conduct, coaching and tournament fees, and retrieval has no idea which club a
-  parent belongs to — it will hand them the wrong one confidently
-- Weighting the question set. Hybrid and embeddings tie at 24/30 and hit a
-  *different* 24, so the choice between them cannot be settled while every
-  question is worth 1/30
+- More must-refuse questions. Eight rows at 12.5 points each is coarser than
+  any effect being measured, and the set has only ever shrunk: 15 → 10 → 8
+- A completeness measure. An answer can be 100% grounded and still not answer
+  the question — q31 tells a parent turf shoes are comfortable instead of what
+  a child should wear. The judge asks whether an answer is supported; nothing
+  asks whether it is whole
+- Weighting the question set. Embeddings 27/32 and hybrid 26/32 differ by one
+  row, and the choice between them cannot be settled while every question is
+  worth 1/32
