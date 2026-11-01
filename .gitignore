@@ -28,3 +28,13 @@ docs/findings-audit.md
 out/judge-*.csv
 docs/judge-report-gated.md
 docs/judge-report-v2-gated.md
+
+# Quotes the four real handbooks verbatim. Regenerable with
+# refuse_candidates.py — the public repo gets the method, not their text.
+docs/refuse-sweep.md
+
+# A personal finance note. Never belongs in a public repo.
+Claude outputs/
+
+# One-time history cleanup helpers.
+_cleanup/

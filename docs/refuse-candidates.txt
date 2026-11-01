@@ -1,0 +1,71 @@
+# Candidate must-refuse questions.
+#
+# One per line. Terms are derived from the question's content words; add any
+# word the handbooks might use instead after a pipe, comma separated.
+#
+#   sweep:  python refuse_candidates.py
+#   read:   docs/refuse-sweep.md
+#
+# A candidate is NOT a question yet. It becomes one when you have read every
+# passage the sweep prints under it and written KEEP or DROP on its verdict
+# line. Target is five KEEPs; the DROPs are worth as much, because they are
+# the labels that did not ship.
+#
+# Three shapes, in increasing order of value to the eval:
+#
+#   A. out of scope      nothing a parent handbook would ever contain
+#   B. absent            ordinary parent question these four never address
+#   C. never stated      the topic is everywhere, the specific fact is absent
+#
+# C is the one the refusal finding rests on: high lexical overlap, no answer.
+# It is also the shape that produced every mislabel so far, which is why it
+# gets swept and read instead of guessed.
+#
+# None of these duplicates an existing question. A near-duplicate of a row
+# already in the set does not add resolution, it adds a correlated pair.
+
+
+# ============================================================
+# PART 1 — the eight rows ALREADY labelled refuse
+# ============================================================
+#
+# Not new candidates. This is the current must-refuse set, swept against the
+# full text for the first time. Every one was labelled the old way, and q06
+# already contradicts a finding in this repo: claim_audit.py found a titled
+# concussion section in club-04, page 10, with a CDC-derived form. Its note
+# still reads "no passage in the four handbooks answers this".
+#
+# Read these FIRST. A DROP here means the 8/8 in week-08.md is scored against
+# a label that is wrong, and that matters more than adding new rows.
+
+What do I do if my child gets a concussion? | concussion, head injury, return to play, cdc
+Can I get a refund if my child quits? | refund, quit, withdraw, withdrawal, non-refundable
+How many players are on a team? | roster, players per, team size, maximum of, number of players
+When is practice and how often do teams practice? | practice, per week, twice, times a week, weeknight
+What if I cannot afford the fees? | scholarship, financial assistance, hardship, fee waiver, unable to pay, payment plan
+What time do games start? | game time, kick off, kickoff, start time, a.m., p.m.
+Am I allowed to watch practice? | watch, spectator, sideline, attend practice, observe
+Is there a parent meeting before the season? | parent meeting, preseason, pre-season, orientation, mandatory meeting
+
+
+# ============================================================
+# PART 2 — new candidates
+# ============================================================
+
+# --- A: out of scope ---
+Who is the club's insurance carrier? | insurance, liability, carrier, policy, coverage, insured
+What is a referee paid per game? | referee, official, paid, stipend, per game, compensation
+Is the club a registered 501(c)(3)? | 501, nonprofit, non-profit, tax-exempt, ein, incorporated
+
+# --- B: ordinary question, possibly absent ---
+Is there a sibling discount? | sibling, discount, second child, family rate, brother, sister
+Can my child play up in an older age group? | play up, playing up, older, age group, age eligibility, birth year
+Is there transportation to away games? | transportation, bus, carpool, ride, travel to, directions
+What do I do if my child's uniform is lost or damaged? | uniform, lost, damaged, replace, replacement, torn
+
+# --- C: mentioned constantly, fact never stated ---
+Does every player get equal playing time? | playing time, equal, minutes, bench, substitution, fair play
+Who do I contact if I have a complaint about a coach? | complaint, grievance, concern, chain of command, contact, report
+Is an athletic trainer present at games? | trainer, athletic trainer, medical staff, first aid, emt, ambulance
+What is the total cost for a full season, all in? | total, cost, fee, dues, all-in, additional costs, out of pocket
+How many games are played in a season? | games, season, schedule, number of games, game count, regular season

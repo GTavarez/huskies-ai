@@ -81,6 +81,7 @@ turned out to be wrong and what fixed it.
 | [week-06](docs/week-06.md) | The key proposer and the scorer were both BM25. The eval had been measuring itself. A cold audit dropped hit@5 from 72% to 35%, and the rigged comparison had been quoted for twelve days. |
 | [week-07](docs/week-07.md) | A conclusion built on a label I had already flagged as unreliable. The model had quoted its source almost word for word and I called it a fabrication. Retracted in place rather than deleted. |
 | [week-08](docs/week-08.md) | Four guards that worked on website content broke 14 of 30 answers here. A lexical relevance check only earns its place where chunks are topically incoherent — on heading-delimited sections it is a paraphrase tax. |
+| [week-09](docs/week-09.md) | Proving a question is unanswerable needs reading, not a failed search. Measured why: the median word in a parent's question appears 54 times across the corpus, the median specific synonym zero — the query and the documents share their common vocabulary and differ only in their rare one. |
 
 Two rules came out of it that transfer past this project:
 
