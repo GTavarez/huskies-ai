@@ -39,9 +39,8 @@ That did two things, and the second is worse than the first:
 
 A tie became a rout. Nothing about either retriever changed. Only the keys did.
 
-The replaced keys are the ones that broke it — `dedicated to promoting the growth
-of competitive youth soccer`, `CLUB does have a payment plan`, the age-group
-line. These are what a person decided was the answer after reading the document.
+The replaced keys are the ones that broke it — the opening clause of club-04's
+mission statement, its payment-plan sentence, the age-group line. These are what a person decided was the answer after reading the document.
 BM25 finds none of them. Embeddings find all of them.
 
 **Lesson, stated generally: when the thing that generates your test data and the
@@ -65,9 +64,8 @@ ranking work left to do on this question set.
 The two losses are `GONE` rows — the key is in the PDF but no single record
 contains it:
 
-- `$560 SPRING SEASON FEE` — club-03's cost section, split across records
-- `dedicated to promoting the growth of competitive youth soccer` — club-04's
-  mission statement, split across records
+- a season-fee heading — club-03's cost section, split across records
+- the opening clause of club-04's mission statement, split across records
 
 > **Corrected 2026-10-04.** Only the first of those was a chunking failure. The
 > second row's stored key turned out to be 2,201 characters of pasted terminal
@@ -166,9 +164,8 @@ sentence can be a terrible one — a page footer appearing on every page of
 club-02 locates nothing at all.
 
 And the sharper corollary, which only showed up on the payment-plan row: **pick
-the key that IS the answer, not one sitting next to it.** `to pay their first
-payment before August 31st` and `CLUB does have a payment plan` live in the same
-paragraph today, so either passes. The moment the splitter cuts between them —
+the key that IS the answer, not one sitting next to it.** the first-payment-deadline sentence and the
+payment-plan sentence live in the same paragraph today, so either passes. The moment the splitter cuts between them —
 which is exactly what Week 7 will do — the first one silently starts pointing at
 a record that does not answer the question, and the eval goes wrong without
 failing.

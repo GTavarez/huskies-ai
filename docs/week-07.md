@@ -123,9 +123,9 @@ Three of the six answerable misses are not retrieval failing.
 
 | | the answer key | key's club | model answered from |
 | --- | --- | --- | --- |
-| q32 — How do I contact the club? | `● For club payment and uniform issues please contact the club registrar` | club-04 | Coaching Director / Age Coordinator — **another club** |
-| q33 — Is there a code of conduct? | `By accepting a position in the club, parents and athletes agree to the` | club-04 | `[club-03-s9]`, `[club-03-s19]` — **another club** |
-| q39 — How do I sign up to coach? | `filling out a SAY Soccer volunteer form` | club-02 | "**the** SAY Soccer volunteer form" |
+| q32 — How do I contact the club? | the club-registrar contact line | club-04 | Coaching Director / Age Coordinator — **another club** |
+| q33 — Is there a code of conduct? | the opening clause of the code-of-conduct section | club-04 | `[club-03-s9]`, `[club-03-s19]` — **another club** |
+| q39 — How do I sign up to coach? | the volunteer-form sentence | club-02 | the same sentence with one article changed |
 
 On q32 and q33 the model returned a correct answer from a handbook that also
 answers the question, and `contains_all` scored it a miss because the key binds

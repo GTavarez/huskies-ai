@@ -60,9 +60,11 @@ citations. `lines_with_font` groups text runs by baseline across the full page
 width, so a run in the left column and a run in the right column at the same
 height become one line. The extractor reads straight across the gutter:
 
-> "- Bigelow, Moroney, & Hall, 2001 too much attention to the game." "When
-> watching a youth sports game, if you can't carry on a normal conversation
-> with the person next to you then you're probably paying instructions."
+> "<sidebar citation> … too much attention to the game." "<pull-quote> …
+> you're probably paying instructions."
+
+(Elided. The handbooks are not published with this repo, so quotations from
+them are cut to fragments; the shuffle is the point and survives the cut.)
 
 A sidebar citation, a pull-quote and body text, interleaved. The sentences are
 shuffled before chunking ever runs.

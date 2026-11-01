@@ -51,7 +51,7 @@ does instead is penalise ordinary paraphrase:
 
 | question | the sentence that answers it | held because |
 | --- | --- | --- |
-| What happens if it rains? | *"Practice and games will be suspended and will not resume until 30 minutes after the last sign of lightning/thunder."* | never mentions "rains" |
+| What happens if it rains? | the weather sentence — play stops, and does not resume until 30 minutes after the last lightning or thunder | never says "rain" |
 | How much are the fees? | the fee sentence | never mentions "much" |
 | What do the fees actually pay for? | the sentence listing what fees cover | never mentions "actually", "pay" |
 
@@ -114,9 +114,9 @@ concatenated in an order pypdf's text never used.
 A single glued word is a much better key. `repair_glued()` re-spaces runs of
 12+ letters one at a time, and leaves alone anything pypdf also renders without
 spaces — an email address or a URL is found as itself and untouched. That is
-why club-03's three "glued runs" were never defects: they are
-`aSportsComplexName` and `aRegionalLeagueName`, fragments of a real address
-and a real URL.
+why club-03's three "glued runs" were never defects: they are a sports-complex
+name and a league name run together — fragments of a real street address and a
+real URL, which pypdf renders without spaces too.
 
 ### What it was worth
 

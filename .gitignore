@@ -44,3 +44,21 @@ docs/referral-medical.md
 docs/referral-week.md
 referral_tracker.py
 access_audit.py
+
+# Carries verbatim strings from the four handbooks in its answer and keys
+# fields. tools/export_public_questions.py writes the publishable copy.
+data/questions-real.jsonl
+data/questions-rejected.jsonl
+
+# Generated from the four real handbooks and quote them. All regenerable:
+# judge.py, retrieval_eval.py, embed_eval.py, audit_questions.py, inspect_records.py.
+docs/judge-report.md
+docs/judge-report-v2.md
+docs/judge-report-guards.md
+docs/judge-report-gated-g2.md
+docs/eval-audit.md
+docs/retrieval-baseline.md
+docs/retrieval-compare.md
+docs/record-review.md
+docs/record-review-seed11.md
+docs/record-review-seed23.md

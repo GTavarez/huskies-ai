@@ -32,8 +32,8 @@ ANSWER KEYS
   amounts over phrases — they survive rewording.
 
       question   : How much are league fees?
-      answer     : LEAGUE-A is $525 and LEAGUE-B is $675
-      keys       : $525, $675
+      answer     : the two league fees, as the handbook states them
+      keys       : the two fee figures
       document   : club-04
 
   Two keys means BOTH must appear. If either alone would answer it, write two

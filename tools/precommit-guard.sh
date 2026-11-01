@@ -57,6 +57,20 @@ deny_content '-----BEGIN [A-Z ]*PRIVATE KEY'            "a private key"
 deny_content '(sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})' \
                                                         "something shaped like an API key or token"
 
+# ---- verbatim handbook text in the staged content -----------------------
+# The path rules above cannot catch this: the leak arrives in a brand new file
+# that nobody thought to list, written by a script that read the corpus. Three
+# generated reports under docs/ quoted whole sentences from a real club's
+# handbook and named the club, its league and its home field, for months.
+if [ -f tools/leak_check.py ] && [ -f data/.handbook-text.txt ]; then
+  if ! python tools/leak_check.py --staged >/tmp/leakcheck.$$ 2>&1; then
+    echo "BLOCKED  verbatim text from the four handbooks"
+    sed 's/^/         /' /tmp/leakcheck.$$ | head -20
+    FAIL=1
+  fi
+  rm -f /tmp/leakcheck.$$ 2>/dev/null || true
+fi
+
 if [ "$FAIL" -ne 0 ]; then
   cat <<'MSG'
 
