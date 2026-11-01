@@ -79,7 +79,7 @@ the instrument or the rubric, never to the documents:
 
 | | what moved it |
 | --- | --- |
-| 20% | labels supplied by the TA and typed in — not a measurement at all |
+| 20% | labels supplied to me and typed in — not a measurement at all |
 | 10% | a viewer that truncated records at 600 characters, so every long record "ended mid-sentence" |
 | 15% | same viewer |
 | 25% | records shown whole |

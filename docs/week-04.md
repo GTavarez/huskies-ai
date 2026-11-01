@@ -124,7 +124,7 @@ Four numbers were produced this week. Only one of them is real.
 
 | | sample | instrument | result |
 | --- | --- | --- | --- |
-| 20% | labels supplied by the TA | — | **not a measurement** — my judgement, not mine to claim |
+| 20% | labels supplied to me | — | **not a measurement** — my judgement, not mine to claim |
 | 10% | my labels, pre-spacing corpus | truncating viewer | superseded |
 | 15% | seed 11 | truncating viewer | superseded |
 | **25%** | **seed 11, same 20 records** | **whole records** | **the baseline** |
@@ -132,8 +132,8 @@ Four numbers were produced this week. Only one of them is real.
 The corpus was identical (128 records) for the last two. **Ten points of the
 baseline were the viewer, not the documents.**
 
-The first number is the one to remember. When the TA handed over a table of
-verdicts and I typed them in, the result measured the TA's judgement of my
+The first number is the one to remember. When a table of verdicts was handed
+to me and I typed them in, the result measured someone else's judgement of my
 corpus, not my corpus — and it read as a real measurement for two days. A
 labelled set is only worth what the labeller's independence is worth.
 

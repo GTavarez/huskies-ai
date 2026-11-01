@@ -17,8 +17,8 @@ Nothing else changes. Same model, same temperature, same seed.
 WHAT IS HONEST ABOUT THIS, AND WHAT IS NOT
   The retrieval is FAKE. Look at QUESTIONS below: I hand-wrote which record
   goes with which question. That is the one piece of cheating here, and it is
-  precisely the piece Weeks 4 and 5 exist to remove — turning "Gisell already
-  knew it was handbook-s1" into "the system found handbook-s1 out of 17, and
+  precisely the piece Weeks 4 and 5 exist to remove — turning "I already knew
+  it was handbook-s1" into "the system found handbook-s1 out of 17, and
   will still find it out of 17,000."
 
   Everything else on this page is real. The prompt shape, the instruction to

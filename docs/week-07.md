@@ -536,10 +536,10 @@ Two things make it defensible, and one does not:
 - **The keys were found by exact-string search over the PDFs**, not by ranked
   retrieval, so there is none of the Week 6 circularity where a BM25 search
   chose the keys a BM25 search would then grade.
-- **But I chose the five key strings, not Gisell.** Five of thirty questions —
-  one sixth of the answerable set — now carry keys selected by the assistant,
-  and the score moved up on precisely those five. Week 4's 20% baseline was
-  thrown out for less: labels supplied rather than produced. This is weaker than
+- **But the five key strings were supplied to me, not produced by me.** Five
+  of thirty questions — one sixth of the answerable set — now carry keys I did
+  not choose, and the score moved up on precisely those five. Week 4's 20%
+  baseline was thrown out for less: labels supplied rather than produced. This is weaker than
   that, because a key is a verbatim quote and the flip decision was made from
   the source text, but it is not nothing, and **the 80% should be quoted with it
   attached** until the five keys have been checked independently.
@@ -599,8 +599,8 @@ in at 3/4 and 1/4.
    parent would ask that four handbooks genuinely do not answer
 4. **Re-run the v1 vs v2 comparison** on the audited set. The earlier verdict
    was retracted, not replaced
-5. **Have the five new keys checked independently** — they were chosen by the
-   assistant, and the score rose on exactly those five rows
+5. **Have the five new keys checked independently** — they were supplied to me
+   rather than produced by me, and the score rose on exactly those five rows
 6. **Routing, properly** — needs a third capable model pulled, since gate,
    answerer and judge must all differ. A 1B gate scored 13/40 against a
    constant's 21/40. v1 ships meanwhile

@@ -198,7 +198,7 @@ front.
 
 `judge_audit.py` prints each sampled row with the answer and the handbook
 sentences nearest to it, and deliberately does not say whether the verdict is
-right. A TA supplying a label table is how the Week 4 self-contained baseline
+right. A supplied label table is how the Week 4 self-contained baseline
 stopped being a measurement; the same mistake made twice would be harder to
 explain.
 

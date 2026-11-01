@@ -14,8 +14,8 @@ WHY THE OBVIOUS SAMPLE IS WRONG
   UNSUPPORTED — which is the population whose error rate you want.
 
 WHAT IT WILL NOT DO
-  Tell you whether each verdict is right. A TA handing over a label table is
-  how the Week 4 self-contained baseline was invalidated; the number stopped
+  Tell you whether each verdict is right. A supplied label table is how the
+  Week 4 self-contained baseline was invalidated; the number stopped
   being a measurement and became a transcription.
 
   So: the answer, and what the handbooks actually say near it, side by side.
