@@ -38,3 +38,9 @@ Claude outputs/
 
 # One-time history cleanup helpers.
 _cleanup/
+
+# Consulting pipeline, not coursework. Moved to the AI consultant folder.
+docs/referral-medical.md
+docs/referral-week.md
+referral_tracker.py
+access_audit.py
