@@ -128,6 +128,20 @@ other clubs' documents, shared for this work, and this repository is public.
 The numbers above are therefore not reproducible from a clone, and saying so is
 better than quietly shipping someone else's handbooks.
 
+Ignoring the PDFs turned out not to be enough. The scripts that read them
+wrote reports that quoted them — 42 verbatim passages across eight tracked
+files, three of which also printed a real club's name, its league and its home
+field. **Ignoring an input does not protect it; the leak is in the outputs.**
+
+`tools/leak_check.py` now compares every tracked file against the full
+handbook text and runs on staged content from a pre-commit hook, so the rule
+is enforced rather than remembered. The question set is published as
+`data/questions-public.jsonl` — the questions and their labels, without the
+answer strings.
+
+[docs/data-handling.md](docs/data-handling.md) is the whole account, including
+the three ways the fix was wrong before it was right.
+
 ---
 
 ## What is still open
