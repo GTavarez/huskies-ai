@@ -99,6 +99,27 @@ A checker that cannot fail loudly is worse than no checker, because it converts
 
 ---
 
+## Testing the anonymisation
+
+The `club-01` … `club-04` labels were checked twice. The first check searched
+for the organisation names that had appeared in output someone had looked at,
+which tests what has been noticed rather than what is there — and would have
+missed one club entirely, whose name sits in its page footer.
+
+The second derived the names from the source: a pattern for capitalised
+sequences ending in `Soccer Club`, `Youth Soccer`, `League`, `Association`,
+`Select`, `Sportsplex`, `FC` or `SC`, run over all four PDFs, then every result
+checked against every tracked file and every commit in history.
+
+**39 organisation names appear in the handbooks. One appears in this repo** —
+`US Youth Soccer`, a national governing body, in a week note. No club or place
+name appears in any tracked file or any commit.
+
+**To test whether something has leaked, enumerate from the source, not from
+what you have noticed.** A list built from memory tests the memory.
+
+---
+
 ## What a force-push does not undo
 
 The exposed content was removed from the branch and from every commit. That is

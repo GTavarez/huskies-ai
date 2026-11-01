@@ -38,6 +38,7 @@ INPUT   docs/refuse-candidates.txt
 OUTPUT  docs/refuse-sweep.md   (gitignored — it quotes the handbooks)
 """
 import argparse
+import bisect
 import re
 from pathlib import Path
 
@@ -140,21 +141,47 @@ def read_candidates():
     return out
 
 
-def snippets(flat, term, pad):
-    """Every occurrence with context. Contents-page lines dropped."""
-    low = flat.lower()
-    seen, out = set(), []
-    for m in matcher(term).finditer(low):
-        a, b = max(0, m.start() - pad), min(len(flat), m.end() + pad)
-        snip = flat[a:b].strip()
-        if DOTS.search(snip):
-            continue
-        key = snip[:60]
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(snip)
+BOUNDARY = re.compile(r"(?<=[.!?])\s+|\s+•\s*")
+
+
+def sentence_bounds(flat):
+    """Start offset of every sentence, plus the end of the text."""
+    out = [0]
+    for m in BOUNDARY.finditer(flat):
+        out.append(m.end())
+    out.append(len(flat))
     return out
+
+
+def passages(flat, terms, limit):
+    """The sentences that contain a hit, once each, with the terms that hit it.
+
+    One sentence per hit, not one window per term. `brother` and `sister` sit
+    in the same sentence of club-01, and a per-term window printed that whole
+    sentence twice with 260 characters of referee advice on either side. Twenty
+    candidates came to 2,265 lines that way, most of it the same text again.
+
+    Contents-page lines are dropped: an entry in a table of contents proves a
+    topic is listed, not that a passage answers anything.
+    """
+    low = flat.lower()
+    bounds = sentence_bounds(flat)
+    found = {}
+    for t in terms:
+        for m in matcher(t).finditer(low):
+            i = bisect.bisect_right(bounds, m.start()) - 1
+            a, b = bounds[i], bounds[min(i + 1, len(bounds) - 1)]
+            text = " ".join(flat[a:b].split())
+            if not text or DOTS.search(text):
+                continue
+            if len(text) > limit:
+                # A sentence with no punctuation in it, usually a glued run.
+                # Keep a window around the hit rather than its first words.
+                rel = max(0, m.start() - a - limit // 3)
+                text = ("… " if rel else "") + text[rel:rel + limit] + " …"
+            found.setdefault((a, text), set()).add(t)
+    return [(text, sorted(ts))
+            for (a, text), ts in sorted(found.items(), key=lambda kv: kv[0][0])]
 
 
 def main():
@@ -237,20 +264,22 @@ def main():
                 doc.append(f"\n### {club} — only terms too common to "
                            f"localise\n")
                 continue
-            doc.append(f"\n### {club}\n")
-            for term in sorted(informative, key=informative.get, reverse=True):
-                got = snippets(texts[club], term, args.pad)
-                if not got:
-                    doc.append(f"- `{term}` ×{hits[term]} — contents-page hits "
-                               f"only\n")
-                    continue
-                shown = got if cap is None else got[:cap]
-                doc.append(f"\n**`{term}` ×{hits[term]}**\n")
-                for s in shown:
-                    doc.append(f"\n> …{s}…\n")
-                if len(got) > len(shown):
-                    doc.append(f"\n_{len(got) - len(shown)} further passages "
-                               f"not shown — `--all-snippets` for all of them._\n")
+            got = passages(texts[club], list(informative), args.pad * 2)
+            if not got:
+                doc.append(f"\n### {club} — contents-page hits only\n")
+                continue
+            shown = got if cap is None else got[:cap]
+            counts = ", ".join(f"`{t}` ×{informative[t]}"
+                               for t in sorted(informative,
+                                               key=informative.get,
+                                               reverse=True))
+            doc.append(f"\n### {club} — {counts}\n")
+            for text, ts in shown:
+                doc.append(f"\n> {text}\n>\n> — matched `"
+                           + "`, `".join(ts) + "`\n")
+            if len(got) > len(shown):
+                doc.append(f"\n_{len(got) - len(shown)} further passage(s) "
+                           f"not shown — `--all-snippets` for all of them._\n")
             print(f"  {club}: " + (", ".join(
                 f"{t}x{n}" for t, n in sorted(informative.items(),
                                               key=lambda kv: -kv[1]))

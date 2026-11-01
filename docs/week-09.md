@@ -158,6 +158,82 @@ the half of the vocabulary that carries no information.
 
 ---
 
+## Making the sweep readable, and a bug in how it quoted
+
+The first full sweep was 2,265 lines for twenty candidates, and the worst
+single candidate ran to 329. That is not a volume problem, it is a duplication
+bug.
+
+`snippets()` took one window per *term*: 260 characters either side of the hit,
+deduplicated on the first 60 characters of the window. `brother` and `sister`
+occur in the same sentence of club-01, so the window started at a different
+offset each time, the dedup key differed, and that one sentence printed twice
+with 260 characters of unrelated referee advice on each side.
+
+It now takes **the sentence containing the hit, once, with the terms that
+matched it** — one line in the worksheet where there were two long ones:
+
+```
+> <the one sentence in club-01 that mentions siblings, which turns out to be
+>  about referees being related to players>
+>
+> — matched `brother`, `sister`
+```
+
+That example is paraphrased rather than quoted, and not by choice: the first
+draft of this section pasted the real sentence in, and `tools/leak_check.py`
+blocked it. The checker caught its own author adding a leak to the week note
+describing the leak audit — which is the argument for having it run on every
+commit rather than at the end of a cleanup.
+
+| | before | after |
+| --- | --- | --- |
+| whole sweep | 2,265 lines | **2,004** |
+| worst candidate | 329 lines | **155** |
+
+A sentence with no sentence-ending punctuation in it — a glued run — falls back
+to a window centred on the hit, so the glued records do not swallow a screen.
+
+The reason this matters beyond tidiness: a worksheet nobody can read does not
+get read, and the verdicts are the whole point of the exercise.
+
+---
+
+## The anonymisation audit, done the right way round
+
+`club-01` … `club-04` are the labels used everywhere. Checking they actually
+anonymise anything was done twice, and only the second attempt was a test.
+
+**First attempt: search for the names I had seen.** Whatcom County Select,
+North Puget Sound League, Phillips 66 Fields — names that had appeared in
+output I happened to look at. That is the same error as concluding a question
+is unanswerable because a ranked search missed it: it can only find what
+already surfaced.
+
+It would have missed club-02 completely. Its page footer carries its own name
+on every page, and that name only came to light because the readability fix
+printed a sentence that happened to include a footer.
+
+**Second attempt: derive the names from the source.** A pattern for
+capitalised sequences ending in `Soccer Club`, `Youth Soccer`, `League`,
+`Association`, `Select`, `Sportsplex`, `FC` or `SC`, run over all four PDFs,
+then every result checked against every tracked file and every commit.
+
+| | |
+| --- | --- |
+| organisation names found in the four handbooks | **39** |
+| of those appearing anywhere in the repo | **1** |
+| that one | `US Youth Soccer` — a national governing body, in `week-06.md` |
+| club or place names in tracked files | **0** |
+| club or place names anywhere in history | **0** |
+
+**The rule: to test whether something has leaked, enumerate from the source,
+not from what you have noticed.** A deny-list built from memory tests your
+memory. `docs/data-handling.md` has the rest of that story, including the three
+checkers in this cleanup that reported success while failing.
+
+---
+
 ## Predictions
 
 The Week 8 scorecard was 2 of 6, every miss in the same direction: every change
