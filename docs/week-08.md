@@ -307,11 +307,23 @@ here: it is the precondition for the refusal metric continuing to mean
 anything. A perfect score on eight rows is not evidence that the judge refuses
 well — it is evidence that nothing has yet been written that it refuses badly.
 
-**Hybrid is now behind embeddings, by one question.** 26/32 against 27/32. That
-gap is a single row, every row is worth 1/32, and nothing in the question set
-says which of the thirty-two matters more than the others. The comparison
-cannot be settled at this resolution — weighting the set is the prerequisite,
-not another re-run.
+**Hybrid is behind embeddings by one question, and that is not one question.**
+26/32 against 27/32. Writing it up as "a single row" was wrong: the reproduction
+run prints which rows moved, and three did.
+
+| | question |
+| --- | --- |
+| RRF **rescued** | Is there a code of conduct I have to sign? — the one BM25 found and embeddings did not |
+| RRF **dropped** | What happens if I yell at the referee? |
+| RRF **dropped** | How do I sign up to be a coach? |
+
+Net −1, from one gain and two losses. BM25 and embeddings disagree on eight
+questions in total, seven of them found by embeddings alone, and fusion is
+re-ranking all eight rather than tipping one. A net of −1 is the sum of three
+questions changing answer for a parent, and nothing in the question set says
+which of the three matters most. **That is the argument for weighting the set:
+at 1/32 per row the metric cannot distinguish "one question worse" from "three
+questions different".**
 
 ---
 
@@ -531,8 +543,10 @@ Worth recording because it is the bias to correct for, not a run of bad luck:
    and does not answer the question. Nothing here measures whether an answer is
    whole, and the judge cannot be asked to: "is this supported" and "is this
    all of it" are different questions
-5. **Weight the question set** — embeddings 27/32 against hybrid 26/32 is one
-   row, and every row is worth the same 1/32. The ranker comparison cannot be
+5. **Weight the question set** — embeddings 27/32 against hybrid 26/32 looks
+   like one row and is three: RRF rescues the code-of-conduct question and
+   drops two others. At 1/32 per row the metric cannot tell "one question
+   worse" from "three questions different", and the comparison cannot be
    settled until some questions count for more than others
 6. ~~Routing, properly~~ — **closed**. gemma2 gate scores 24/40 against a
    constant's 24/40, and costs three grounded answers. Verification after
